@@ -148,7 +148,21 @@ function getRequestedModel(body: Record<string, unknown> | null) {
   return typeof body?.model === "string" ? body.model : null
 }
 
-export async function getEnabledModels() {
+function hiddenChatGptModelOverride(model: ManagedModel): ManagedModel {
+  return {
+    ...model,
+    enabled: false,
+    codexModelInfo: {
+      ...(model.codexModelInfo || {
+        slug: model.id,
+        display_name: model.displayName,
+      }),
+      visibility: "hide",
+    },
+  }
+}
+
+async function resolveConfiguredModels() {
   const settings = await listOpenRouterModelSettings()
   const chatGptSettings = await listChatGptModelSettings()
   const liveOpenAIModels = await fetchChatGptCodexModels()
@@ -158,6 +172,9 @@ export async function getEnabledModels() {
   const enabledLiveOpenAIModels = liveOpenAIModels.filter(
     (model) => chatGptSettingsById.get(model.id)?.enabled ?? model.enabled
   )
+  const hiddenLiveOpenAIModels = liveOpenAIModels
+    .filter((model) => chatGptSettingsById.get(model.id)?.enabled === false)
+    .map(hiddenChatGptModelOverride)
   const openRouterCapabilities = settings.some(
     (model) => model.providerName || model.id.startsWith("openrouter/")
   )
@@ -197,34 +214,50 @@ export async function getEnabledModels() {
       })
     })
 
-  return [
-    ...enabledLiveOpenAIModels,
-    ...staticModels,
-    ...configuredOpenRouterModels,
-  ]
+  return {
+    enabledModels: [
+      ...enabledLiveOpenAIModels,
+      ...staticModels,
+      ...configuredOpenRouterModels,
+    ],
+    catalogModels: [
+      ...enabledLiveOpenAIModels,
+      ...hiddenLiveOpenAIModels,
+      ...staticModels,
+      ...configuredOpenRouterModels,
+    ],
+  }
+}
+
+export async function getEnabledModels() {
+  return (await resolveConfiguredModels()).enabledModels
+}
+
+export async function getCodexCatalogModels() {
+  return (await resolveConfiguredModels()).catalogModels
 }
 
 export async function getHealth() {
   const models = await getEnabledModels()
-  await writeCodexModelCatalog(models)
+  await writeCodexModelCatalog(await getCodexCatalogModels())
   return proxyJson({ ok: true, models: models.length })
 }
 
 export async function getOpenAIModels() {
   const models = await getEnabledModels()
-  await writeCodexModelCatalog(models)
+  await writeCodexModelCatalog(await getCodexCatalogModels())
   return proxyJson(toOpenAIModelList(models))
 }
 
 export async function getCodexModels() {
-  const models = await getEnabledModels()
+  const models = await getCodexCatalogModels()
   await writeCodexModelCatalog(models)
   return proxyJson(toCodexModelCatalog(models))
 }
 
 export async function getManagedModels() {
   const models = await getEnabledModels()
-  await writeCodexModelCatalog(models)
+  await writeCodexModelCatalog(await getCodexCatalogModels())
   return proxyJson({ models })
 }
 

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
 
-import { fetchChatGptCodexModels, getEnabledModels } from "@/proxy/handlers"
+import { fetchChatGptCodexModels, getCodexCatalogModels } from "@/proxy/handlers"
 import { apiJson, apiOptions, readJson } from "@/server/api/json"
 import {
   listChatGptModelSettings,
@@ -52,7 +52,7 @@ async function updateChatGptModel(request: Request) {
     enabled: body.enabled,
   })
 
-  await writeCodexModelCatalog(await getEnabledModels())
+  await writeCodexModelCatalog(await getCodexCatalogModels())
 
   return apiJson({ model })
 }
