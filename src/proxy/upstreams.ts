@@ -146,6 +146,8 @@ const CODEX_CONTROL_RESPONSE_HEADERS = new Set([
   "x-request-id",
 ])
 
+const DEFAULT_CODEX_INSTRUCTIONS = "You are Codex, an AI coding agent."
+
 function getBearerToken(request: Request) {
   const auth = request.headers.get("authorization")
 
@@ -232,6 +234,30 @@ function normalizeCodexResponsesPayload(body: Record<string, unknown>) {
   delete upstreamBody.safety_identifier
   delete upstreamBody.temperature
   delete upstreamBody.top_p
+
+  return upstreamBody
+}
+
+function codexInstructionsForModel(model: ManagedModel) {
+  const baseInstructions = model.codexModelInfo?.base_instructions
+
+  return typeof baseInstructions === "string" && baseInstructions.trim()
+    ? baseInstructions
+    : DEFAULT_CODEX_INSTRUCTIONS
+}
+
+function normalizeChatGptCodexResponsesPayload(input: UpstreamRequest) {
+  const upstreamBody: Record<string, unknown> = {
+    ...input.body,
+    model: input.model.upstreamModel,
+  }
+
+  if (
+    typeof upstreamBody.instructions !== "string" ||
+    !upstreamBody.instructions.trim()
+  ) {
+    upstreamBody.instructions = codexInstructionsForModel(input.model)
+  }
 
   return upstreamBody
 }
@@ -325,7 +351,9 @@ function contentItemImageUrl(item: Record<string, unknown>) {
   return null
 }
 
-function contentItemsToChatContent(content: unknown): string | Array<ChatContentPart> {
+function contentItemsToChatContent(
+  content: unknown
+): string | Array<ChatContentPart> {
   if (typeof content === "string") {
     return content
   }
@@ -465,7 +493,9 @@ function responsesInputToChatMessages(body: Record<string, unknown>) {
   return messages
 }
 
-function responsesToolsToChatTools(tools: unknown): Array<ChatTool> | undefined {
+function responsesToolsToChatTools(
+  tools: unknown
+): Array<ChatTool> | undefined {
   if (!Array.isArray(tools)) {
     return undefined
   }
@@ -654,7 +684,8 @@ function responsesOutput(
 ) {
   if (input.body.stream === false) {
     return json(
-      responseCompletedEventWithUsage(id, input.model.id, output, usage).response
+      responseCompletedEventWithUsage(id, input.model.id, output, usage)
+        .response
     )
   }
 
@@ -1297,7 +1328,9 @@ function anthropicOutput(content: AnthropicMessageResponse["content"]) {
   return [messageOutputItem(outputItemId(), anthropicContentText(content))]
 }
 
-function anthropicUsageToResponseUsage(usage: AnthropicMessageResponse["usage"]) {
+function anthropicUsageToResponseUsage(
+  usage: AnthropicMessageResponse["usage"]
+) {
   if (!usage) {
     return undefined
   }
@@ -1482,7 +1515,10 @@ function geminiOutput(data: GeminiResponse) {
   return [
     messageOutputItem(
       outputItemId(),
-      parts.map((part) => part.text || "").filter(Boolean).join("\n")
+      parts
+        .map((part) => part.text || "")
+        .filter(Boolean)
+        .join("\n")
     ),
   ]
 }
@@ -1500,7 +1536,8 @@ function geminiUsageToResponseUsage(usage: GeminiResponse["usageMetadata"]) {
   return {
     input_tokens: inputTokens,
     output_tokens: outputTokens,
-    total_tokens: tokenCount(usage.totalTokenCount) || inputTokens + outputTokens,
+    total_tokens:
+      tokenCount(usage.totalTokenCount) || inputTokens + outputTokens,
     input_tokens_details: {
       cached_tokens: tokenCount(usage.cachedContentTokenCount),
     },
@@ -1587,7 +1624,8 @@ export async function forwardResponses(input: UpstreamRequest) {
     return forwardOpenCodeZenResponses(input)
   }
 
-  const accountToken = await getActiveAccessToken()
+  const account = await getActiveAccount()
+  const accountToken = account ? await getActiveAccessToken() : null
   const key = accountToken || getOpenAIKey()
 
   if (!key) {
@@ -1603,12 +1641,25 @@ export async function forwardResponses(input: UpstreamRequest) {
     )
   }
 
-  if (accountToken) {
-    return forwardJson(
+  if (accountToken && account) {
+    const response = await fetch(
       "https://chatgpt.com/backend-api/codex/responses",
-      key,
-      input
+      {
+        method: "POST",
+        headers: cloneCodexResponsesHeaders(
+          input.request,
+          key,
+          account.chatgptAccountId
+        ),
+        body: JSON.stringify(normalizeChatGptCodexResponsesPayload(input)),
+      }
     )
+
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    })
   }
 
   return forwardJson("https://api.openai.com/v1/responses", key, input)
@@ -1664,7 +1715,10 @@ export async function forwardCodexAutoReviewResponses(
   })
 }
 
-export async function forwardCodexControlRequest(request: Request, path: string) {
+export async function forwardCodexControlRequest(
+  request: Request,
+  path: string
+) {
   const account = await getActiveAccount()
   const token = account ? await getActiveAccessToken() : null
 
@@ -1685,9 +1739,7 @@ export async function forwardCodexControlRequest(request: Request, path: string)
   const upstreamPath = normalizedPath.startsWith("wham/")
     ? normalizedPath
     : `codex/${normalizedPath}`
-  const upstreamUrl = new URL(
-    `https://chatgpt.com/backend-api/${upstreamPath}`
-  )
+  const upstreamUrl = new URL(`https://chatgpt.com/backend-api/${upstreamPath}`)
   upstreamUrl.search = sourceUrl.search
 
   const method = request.method.toUpperCase()

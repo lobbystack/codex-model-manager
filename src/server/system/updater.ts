@@ -2,7 +2,7 @@ import { createHash } from "node:crypto"
 import { execFile } from "node:child_process"
 import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import { arch, homedir, platform, tmpdir } from "node:os"
-import { dirname, join, resolve } from "node:path"
+import { basename, dirname, join, resolve } from "node:path"
 import { promisify } from "node:util"
 
 const execFileAsync = promisify(execFile)
@@ -28,6 +28,10 @@ type PackageInfo = {
   version?: string
 }
 
+type RuntimeInfo = {
+  version?: string
+}
+
 async function exists(path: string) {
   try {
     await access(path)
@@ -40,6 +44,14 @@ async function exists(path: string) {
 async function readPackageInfo(): Promise<PackageInfo> {
   try {
     return JSON.parse(await readFile(resolve("package.json"), "utf8")) as PackageInfo
+  } catch {
+    return {}
+  }
+}
+
+async function readRuntimeInfo(): Promise<RuntimeInfo> {
+  try {
+    return JSON.parse(await readFile(resolve("runtime.json"), "utf8")) as RuntimeInfo
   } catch {
     return {}
   }
@@ -85,25 +97,41 @@ function compareVersions(left: string, right: string) {
   return 0
 }
 
+function versionFromInstallPath(path: string) {
+  const directoryName = basename(path)
+
+  return /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(directoryName)
+    ? directoryName
+    : null
+}
+
 async function isDevCheckout() {
   return (await exists(resolve(".git"))) || (await exists(resolve("src")))
 }
 
 export async function getSystemVersion() {
+  const runtimeInfo = await readRuntimeInfo()
   const packageInfo = await readPackageInfo()
   const devCheckout = await isDevCheckout()
+  const currentPath = resolve(".")
+  const releaseMode = process.env.CMM_RELEASE === "1" || !devCheckout
 
   return {
     ok: true,
     name: APP_NAME,
-    version: process.env.CMM_VERSION || packageInfo.version || "0.0.0-dev",
+    version:
+      process.env.CMM_VERSION ||
+      (releaseMode ? versionFromInstallPath(currentPath) : null) ||
+      runtimeInfo.version ||
+      packageInfo.version ||
+      "0.0.0-dev",
     platform: platform(),
     arch: arch(),
     port: Number(process.env.NITRO_PORT || process.env.PORT || 1455),
     host: process.env.NITRO_HOST || process.env.HOST || "127.0.0.1",
     installRoot: installRoot(),
-    currentPath: resolve("."),
-    releaseMode: process.env.CMM_RELEASE === "1" || !devCheckout,
+    currentPath,
+    releaseMode,
     updateConfigured: Boolean(
       process.env.CMM_UPDATE_MANIFEST_URL || process.env.CMM_GITHUB_REPO
     ),
