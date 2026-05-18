@@ -1,20 +1,7 @@
 import { Link, useLocation } from "@tanstack/react-router"
 import { Activity, Box, Layers, Terminal } from "lucide-react"
 
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-
-export function AppLayout({
-  children,
-  proxyUrl = "http://127.0.0.1:1455",
-}: {
-  children: React.ReactNode
-  proxyUrl?: string
-}) {
+export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
 
   const navItems = [
@@ -52,16 +39,6 @@ export function AppLayout({
               )
             })}
           </nav>
-        </div>
-        <div className="mt-auto p-4">
-          <Card>
-            <CardHeader className="p-4">
-              <CardTitle className="text-sm">Proxy URL</CardTitle>
-              <CardDescription className="font-mono text-xs text-foreground/80">
-                {proxyUrl}
-              </CardDescription>
-            </CardHeader>
-          </Card>
         </div>
       </aside>
 
