@@ -32,6 +32,16 @@ import { Route as ApiOauthCompleteRouteImport } from './routes/api/oauth/complet
 import { Route as ApiCodexUsageLimitRouteImport } from './routes/api/codex/usage-limit'
 import { Route as ApiCodexModelCatalogRouteImport } from './routes/api/codex/model-catalog'
 import { Route as ApiCodexInstallConfigRouteImport } from './routes/api/codex/install-config'
+import { Route as BackendApiWhamAgentIdentitiesJwksRouteImport } from './routes/backend-api/wham/agent-identities/jwks'
+import { Route as BackendApiCodexSafetyArcRouteImport } from './routes/backend-api/codex/safety/arc'
+import { Route as BackendApiCodexResponsesCompactRouteImport } from './routes/backend-api/codex/responses/compact'
+import { Route as BackendApiCodexRealtimeCallsRouteImport } from './routes/backend-api/codex/realtime/calls'
+import { Route as BackendApiCodexMemoriesTrace_summarizeRouteImport } from './routes/backend-api/codex/memories/trace_summarize'
+import { Route as BackendApiCodexAnalyticsEventsEventsRouteImport } from './routes/backend-api/codex/analytics-events/events'
+import { Route as BackendApiCodexAgentIdentitiesJwksRouteImport } from './routes/backend-api/codex/agent-identities/jwks'
+import { Route as BackendApiCodexThreadGoalSetRouteImport } from './routes/backend-api/codex/thread/goal/set'
+import { Route as BackendApiCodexThreadGoalGetRouteImport } from './routes/backend-api/codex/thread/goal/get'
+import { Route as BackendApiCodexThreadGoalClearRouteImport } from './routes/backend-api/codex/thread/goal/clear'
 
 const HealthRoute = HealthRouteImport.update({
   id: '/health',
@@ -149,6 +159,66 @@ const ApiCodexInstallConfigRoute = ApiCodexInstallConfigRouteImport.update({
   path: '/api/codex/install-config',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BackendApiWhamAgentIdentitiesJwksRoute =
+  BackendApiWhamAgentIdentitiesJwksRouteImport.update({
+    id: '/backend-api/wham/agent-identities/jwks',
+    path: '/backend-api/wham/agent-identities/jwks',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const BackendApiCodexSafetyArcRoute =
+  BackendApiCodexSafetyArcRouteImport.update({
+    id: '/backend-api/codex/safety/arc',
+    path: '/backend-api/codex/safety/arc',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const BackendApiCodexResponsesCompactRoute =
+  BackendApiCodexResponsesCompactRouteImport.update({
+    id: '/compact',
+    path: '/compact',
+    getParentRoute: () => BackendApiCodexResponsesRoute,
+  } as any)
+const BackendApiCodexRealtimeCallsRoute =
+  BackendApiCodexRealtimeCallsRouteImport.update({
+    id: '/backend-api/codex/realtime/calls',
+    path: '/backend-api/codex/realtime/calls',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const BackendApiCodexMemoriesTrace_summarizeRoute =
+  BackendApiCodexMemoriesTrace_summarizeRouteImport.update({
+    id: '/backend-api/codex/memories/trace_summarize',
+    path: '/backend-api/codex/memories/trace_summarize',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const BackendApiCodexAnalyticsEventsEventsRoute =
+  BackendApiCodexAnalyticsEventsEventsRouteImport.update({
+    id: '/backend-api/codex/analytics-events/events',
+    path: '/backend-api/codex/analytics-events/events',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const BackendApiCodexAgentIdentitiesJwksRoute =
+  BackendApiCodexAgentIdentitiesJwksRouteImport.update({
+    id: '/backend-api/codex/agent-identities/jwks',
+    path: '/backend-api/codex/agent-identities/jwks',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const BackendApiCodexThreadGoalSetRoute =
+  BackendApiCodexThreadGoalSetRouteImport.update({
+    id: '/backend-api/codex/thread/goal/set',
+    path: '/backend-api/codex/thread/goal/set',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const BackendApiCodexThreadGoalGetRoute =
+  BackendApiCodexThreadGoalGetRouteImport.update({
+    id: '/backend-api/codex/thread/goal/get',
+    path: '/backend-api/codex/thread/goal/get',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const BackendApiCodexThreadGoalClearRoute =
+  BackendApiCodexThreadGoalClearRouteImport.update({
+    id: '/backend-api/codex/thread/goal/clear',
+    path: '/backend-api/codex/thread/goal/clear',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -172,8 +242,18 @@ export interface FileRoutesByFullPath {
   '/api/providers/opencode-zen': typeof ApiProvidersOpencodeZenRoute
   '/api/providers/openrouter': typeof ApiProvidersOpenrouterRoute
   '/backend-api/codex/models': typeof BackendApiCodexModelsRoute
-  '/backend-api/codex/responses': typeof BackendApiCodexResponsesRoute
+  '/backend-api/codex/responses': typeof BackendApiCodexResponsesRouteWithChildren
   '/v1/chat/completions': typeof V1ChatCompletionsRoute
+  '/backend-api/codex/agent-identities/jwks': typeof BackendApiCodexAgentIdentitiesJwksRoute
+  '/backend-api/codex/analytics-events/events': typeof BackendApiCodexAnalyticsEventsEventsRoute
+  '/backend-api/codex/memories/trace_summarize': typeof BackendApiCodexMemoriesTrace_summarizeRoute
+  '/backend-api/codex/realtime/calls': typeof BackendApiCodexRealtimeCallsRoute
+  '/backend-api/codex/responses/compact': typeof BackendApiCodexResponsesCompactRoute
+  '/backend-api/codex/safety/arc': typeof BackendApiCodexSafetyArcRoute
+  '/backend-api/wham/agent-identities/jwks': typeof BackendApiWhamAgentIdentitiesJwksRoute
+  '/backend-api/codex/thread/goal/clear': typeof BackendApiCodexThreadGoalClearRoute
+  '/backend-api/codex/thread/goal/get': typeof BackendApiCodexThreadGoalGetRoute
+  '/backend-api/codex/thread/goal/set': typeof BackendApiCodexThreadGoalSetRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -197,8 +277,18 @@ export interface FileRoutesByTo {
   '/api/providers/opencode-zen': typeof ApiProvidersOpencodeZenRoute
   '/api/providers/openrouter': typeof ApiProvidersOpenrouterRoute
   '/backend-api/codex/models': typeof BackendApiCodexModelsRoute
-  '/backend-api/codex/responses': typeof BackendApiCodexResponsesRoute
+  '/backend-api/codex/responses': typeof BackendApiCodexResponsesRouteWithChildren
   '/v1/chat/completions': typeof V1ChatCompletionsRoute
+  '/backend-api/codex/agent-identities/jwks': typeof BackendApiCodexAgentIdentitiesJwksRoute
+  '/backend-api/codex/analytics-events/events': typeof BackendApiCodexAnalyticsEventsEventsRoute
+  '/backend-api/codex/memories/trace_summarize': typeof BackendApiCodexMemoriesTrace_summarizeRoute
+  '/backend-api/codex/realtime/calls': typeof BackendApiCodexRealtimeCallsRoute
+  '/backend-api/codex/responses/compact': typeof BackendApiCodexResponsesCompactRoute
+  '/backend-api/codex/safety/arc': typeof BackendApiCodexSafetyArcRoute
+  '/backend-api/wham/agent-identities/jwks': typeof BackendApiWhamAgentIdentitiesJwksRoute
+  '/backend-api/codex/thread/goal/clear': typeof BackendApiCodexThreadGoalClearRoute
+  '/backend-api/codex/thread/goal/get': typeof BackendApiCodexThreadGoalGetRoute
+  '/backend-api/codex/thread/goal/set': typeof BackendApiCodexThreadGoalSetRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -223,8 +313,18 @@ export interface FileRoutesById {
   '/api/providers/opencode-zen': typeof ApiProvidersOpencodeZenRoute
   '/api/providers/openrouter': typeof ApiProvidersOpenrouterRoute
   '/backend-api/codex/models': typeof BackendApiCodexModelsRoute
-  '/backend-api/codex/responses': typeof BackendApiCodexResponsesRoute
+  '/backend-api/codex/responses': typeof BackendApiCodexResponsesRouteWithChildren
   '/v1/chat/completions': typeof V1ChatCompletionsRoute
+  '/backend-api/codex/agent-identities/jwks': typeof BackendApiCodexAgentIdentitiesJwksRoute
+  '/backend-api/codex/analytics-events/events': typeof BackendApiCodexAnalyticsEventsEventsRoute
+  '/backend-api/codex/memories/trace_summarize': typeof BackendApiCodexMemoriesTrace_summarizeRoute
+  '/backend-api/codex/realtime/calls': typeof BackendApiCodexRealtimeCallsRoute
+  '/backend-api/codex/responses/compact': typeof BackendApiCodexResponsesCompactRoute
+  '/backend-api/codex/safety/arc': typeof BackendApiCodexSafetyArcRoute
+  '/backend-api/wham/agent-identities/jwks': typeof BackendApiWhamAgentIdentitiesJwksRoute
+  '/backend-api/codex/thread/goal/clear': typeof BackendApiCodexThreadGoalClearRoute
+  '/backend-api/codex/thread/goal/get': typeof BackendApiCodexThreadGoalGetRoute
+  '/backend-api/codex/thread/goal/set': typeof BackendApiCodexThreadGoalSetRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -252,6 +352,16 @@ export interface FileRouteTypes {
     | '/backend-api/codex/models'
     | '/backend-api/codex/responses'
     | '/v1/chat/completions'
+    | '/backend-api/codex/agent-identities/jwks'
+    | '/backend-api/codex/analytics-events/events'
+    | '/backend-api/codex/memories/trace_summarize'
+    | '/backend-api/codex/realtime/calls'
+    | '/backend-api/codex/responses/compact'
+    | '/backend-api/codex/safety/arc'
+    | '/backend-api/wham/agent-identities/jwks'
+    | '/backend-api/codex/thread/goal/clear'
+    | '/backend-api/codex/thread/goal/get'
+    | '/backend-api/codex/thread/goal/set'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -277,6 +387,16 @@ export interface FileRouteTypes {
     | '/backend-api/codex/models'
     | '/backend-api/codex/responses'
     | '/v1/chat/completions'
+    | '/backend-api/codex/agent-identities/jwks'
+    | '/backend-api/codex/analytics-events/events'
+    | '/backend-api/codex/memories/trace_summarize'
+    | '/backend-api/codex/realtime/calls'
+    | '/backend-api/codex/responses/compact'
+    | '/backend-api/codex/safety/arc'
+    | '/backend-api/wham/agent-identities/jwks'
+    | '/backend-api/codex/thread/goal/clear'
+    | '/backend-api/codex/thread/goal/get'
+    | '/backend-api/codex/thread/goal/set'
   id:
     | '__root__'
     | '/'
@@ -302,6 +422,16 @@ export interface FileRouteTypes {
     | '/backend-api/codex/models'
     | '/backend-api/codex/responses'
     | '/v1/chat/completions'
+    | '/backend-api/codex/agent-identities/jwks'
+    | '/backend-api/codex/analytics-events/events'
+    | '/backend-api/codex/memories/trace_summarize'
+    | '/backend-api/codex/realtime/calls'
+    | '/backend-api/codex/responses/compact'
+    | '/backend-api/codex/safety/arc'
+    | '/backend-api/wham/agent-identities/jwks'
+    | '/backend-api/codex/thread/goal/clear'
+    | '/backend-api/codex/thread/goal/get'
+    | '/backend-api/codex/thread/goal/set'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -326,8 +456,17 @@ export interface RootRouteChildren {
   ApiProvidersOpencodeZenRoute: typeof ApiProvidersOpencodeZenRoute
   ApiProvidersOpenrouterRoute: typeof ApiProvidersOpenrouterRoute
   BackendApiCodexModelsRoute: typeof BackendApiCodexModelsRoute
-  BackendApiCodexResponsesRoute: typeof BackendApiCodexResponsesRoute
+  BackendApiCodexResponsesRoute: typeof BackendApiCodexResponsesRouteWithChildren
   V1ChatCompletionsRoute: typeof V1ChatCompletionsRoute
+  BackendApiCodexAgentIdentitiesJwksRoute: typeof BackendApiCodexAgentIdentitiesJwksRoute
+  BackendApiCodexAnalyticsEventsEventsRoute: typeof BackendApiCodexAnalyticsEventsEventsRoute
+  BackendApiCodexMemoriesTrace_summarizeRoute: typeof BackendApiCodexMemoriesTrace_summarizeRoute
+  BackendApiCodexRealtimeCallsRoute: typeof BackendApiCodexRealtimeCallsRoute
+  BackendApiCodexSafetyArcRoute: typeof BackendApiCodexSafetyArcRoute
+  BackendApiWhamAgentIdentitiesJwksRoute: typeof BackendApiWhamAgentIdentitiesJwksRoute
+  BackendApiCodexThreadGoalClearRoute: typeof BackendApiCodexThreadGoalClearRoute
+  BackendApiCodexThreadGoalGetRoute: typeof BackendApiCodexThreadGoalGetRoute
+  BackendApiCodexThreadGoalSetRoute: typeof BackendApiCodexThreadGoalSetRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -493,8 +632,92 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCodexInstallConfigRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/backend-api/wham/agent-identities/jwks': {
+      id: '/backend-api/wham/agent-identities/jwks'
+      path: '/backend-api/wham/agent-identities/jwks'
+      fullPath: '/backend-api/wham/agent-identities/jwks'
+      preLoaderRoute: typeof BackendApiWhamAgentIdentitiesJwksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/backend-api/codex/safety/arc': {
+      id: '/backend-api/codex/safety/arc'
+      path: '/backend-api/codex/safety/arc'
+      fullPath: '/backend-api/codex/safety/arc'
+      preLoaderRoute: typeof BackendApiCodexSafetyArcRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/backend-api/codex/responses/compact': {
+      id: '/backend-api/codex/responses/compact'
+      path: '/compact'
+      fullPath: '/backend-api/codex/responses/compact'
+      preLoaderRoute: typeof BackendApiCodexResponsesCompactRouteImport
+      parentRoute: typeof BackendApiCodexResponsesRoute
+    }
+    '/backend-api/codex/realtime/calls': {
+      id: '/backend-api/codex/realtime/calls'
+      path: '/backend-api/codex/realtime/calls'
+      fullPath: '/backend-api/codex/realtime/calls'
+      preLoaderRoute: typeof BackendApiCodexRealtimeCallsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/backend-api/codex/memories/trace_summarize': {
+      id: '/backend-api/codex/memories/trace_summarize'
+      path: '/backend-api/codex/memories/trace_summarize'
+      fullPath: '/backend-api/codex/memories/trace_summarize'
+      preLoaderRoute: typeof BackendApiCodexMemoriesTrace_summarizeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/backend-api/codex/analytics-events/events': {
+      id: '/backend-api/codex/analytics-events/events'
+      path: '/backend-api/codex/analytics-events/events'
+      fullPath: '/backend-api/codex/analytics-events/events'
+      preLoaderRoute: typeof BackendApiCodexAnalyticsEventsEventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/backend-api/codex/agent-identities/jwks': {
+      id: '/backend-api/codex/agent-identities/jwks'
+      path: '/backend-api/codex/agent-identities/jwks'
+      fullPath: '/backend-api/codex/agent-identities/jwks'
+      preLoaderRoute: typeof BackendApiCodexAgentIdentitiesJwksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/backend-api/codex/thread/goal/set': {
+      id: '/backend-api/codex/thread/goal/set'
+      path: '/backend-api/codex/thread/goal/set'
+      fullPath: '/backend-api/codex/thread/goal/set'
+      preLoaderRoute: typeof BackendApiCodexThreadGoalSetRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/backend-api/codex/thread/goal/get': {
+      id: '/backend-api/codex/thread/goal/get'
+      path: '/backend-api/codex/thread/goal/get'
+      fullPath: '/backend-api/codex/thread/goal/get'
+      preLoaderRoute: typeof BackendApiCodexThreadGoalGetRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/backend-api/codex/thread/goal/clear': {
+      id: '/backend-api/codex/thread/goal/clear'
+      path: '/backend-api/codex/thread/goal/clear'
+      fullPath: '/backend-api/codex/thread/goal/clear'
+      preLoaderRoute: typeof BackendApiCodexThreadGoalClearRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
+
+interface BackendApiCodexResponsesRouteChildren {
+  BackendApiCodexResponsesCompactRoute: typeof BackendApiCodexResponsesCompactRoute
+}
+
+const BackendApiCodexResponsesRouteChildren: BackendApiCodexResponsesRouteChildren =
+  {
+    BackendApiCodexResponsesCompactRoute: BackendApiCodexResponsesCompactRoute,
+  }
+
+const BackendApiCodexResponsesRouteWithChildren =
+  BackendApiCodexResponsesRoute._addFileChildren(
+    BackendApiCodexResponsesRouteChildren,
+  )
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -518,8 +741,21 @@ const rootRouteChildren: RootRouteChildren = {
   ApiProvidersOpencodeZenRoute: ApiProvidersOpencodeZenRoute,
   ApiProvidersOpenrouterRoute: ApiProvidersOpenrouterRoute,
   BackendApiCodexModelsRoute: BackendApiCodexModelsRoute,
-  BackendApiCodexResponsesRoute: BackendApiCodexResponsesRoute,
+  BackendApiCodexResponsesRoute: BackendApiCodexResponsesRouteWithChildren,
   V1ChatCompletionsRoute: V1ChatCompletionsRoute,
+  BackendApiCodexAgentIdentitiesJwksRoute:
+    BackendApiCodexAgentIdentitiesJwksRoute,
+  BackendApiCodexAnalyticsEventsEventsRoute:
+    BackendApiCodexAnalyticsEventsEventsRoute,
+  BackendApiCodexMemoriesTrace_summarizeRoute:
+    BackendApiCodexMemoriesTrace_summarizeRoute,
+  BackendApiCodexRealtimeCallsRoute: BackendApiCodexRealtimeCallsRoute,
+  BackendApiCodexSafetyArcRoute: BackendApiCodexSafetyArcRoute,
+  BackendApiWhamAgentIdentitiesJwksRoute:
+    BackendApiWhamAgentIdentitiesJwksRoute,
+  BackendApiCodexThreadGoalClearRoute: BackendApiCodexThreadGoalClearRoute,
+  BackendApiCodexThreadGoalGetRoute: BackendApiCodexThreadGoalGetRoute,
+  BackendApiCodexThreadGoalSetRoute: BackendApiCodexThreadGoalSetRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

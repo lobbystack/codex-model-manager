@@ -1,6 +1,7 @@
 import { openCodeZenModelFamily } from "./model-registry"
 import type { ManagedModel } from "./model-registry"
 import {
+  getActiveAccount,
   getOpenCodeZenKey as getStoredOpenCodeZenKey,
   getOpenRouterKey as getStoredOpenRouterKey,
 } from "@/server/accounts/store"
@@ -134,6 +135,17 @@ function json(data: unknown, status = 200) {
   return Response.json(data, { status })
 }
 
+const CODEX_CONTROL_RESPONSE_HEADERS = new Set([
+  "cache-control",
+  "content-type",
+  "etag",
+  "last-modified",
+  "location",
+  "openai-processing-ms",
+  "request-id",
+  "x-request-id",
+])
+
 function getBearerToken(request: Request) {
   const auth = request.headers.get("authorization")
 
@@ -167,6 +179,42 @@ function cloneHeaders(request: Request, bearer: string) {
   headers.delete("host")
   headers.delete("content-length")
   return headers
+}
+
+function cloneCodexControlHeaders(
+  request: Request,
+  bearer: string,
+  accountId?: string | null,
+  hasBody = false
+) {
+  const headers = new Headers(request.headers)
+  headers.set("authorization", `Bearer ${bearer}`)
+  headers.set("accept", request.headers.get("accept") || "*/*")
+
+  if (accountId) {
+    headers.set("chatgpt-account-id", accountId)
+  }
+
+  if (!hasBody && !request.headers.get("content-type")) {
+    headers.delete("content-type")
+  }
+
+  headers.delete("content-encoding")
+  headers.delete("host")
+  headers.delete("content-length")
+  return headers
+}
+
+function codexControlResponseHeaders(headers: Headers) {
+  const downstream = new Headers()
+
+  for (const [key, value] of headers.entries()) {
+    if (CODEX_CONTROL_RESPONSE_HEADERS.has(key.toLowerCase())) {
+      downstream.set(key, value)
+    }
+  }
+
+  return downstream
 }
 
 function cloneGoogleStyleHeaders(request: Request, apiKey: string) {
@@ -1533,4 +1581,51 @@ export async function forwardResponses(input: UpstreamRequest) {
   }
 
   return forwardJson("https://api.openai.com/v1/responses", key, input)
+}
+
+export async function forwardCodexControlRequest(request: Request, path: string) {
+  const account = await getActiveAccount()
+  const token = account ? await getActiveAccessToken() : null
+
+  if (!account || !token) {
+    return json(
+      {
+        error: {
+          message: "Connect a ChatGPT account to use Codex control routes.",
+          type: "missing_chatgpt_account",
+        },
+      },
+      401
+    )
+  }
+
+  const sourceUrl = new URL(request.url)
+  const normalizedPath = path.replace(/^\/+|\/+$/g, "")
+  const upstreamPath = normalizedPath.startsWith("wham/")
+    ? normalizedPath
+    : `codex/${normalizedPath}`
+  const upstreamUrl = new URL(
+    `https://chatgpt.com/backend-api/${upstreamPath}`
+  )
+  upstreamUrl.search = sourceUrl.search
+
+  const method = request.method.toUpperCase()
+  const hasBody = method !== "GET" && method !== "HEAD"
+  const body = hasBody ? await request.arrayBuffer() : undefined
+  const response = await fetch(upstreamUrl, {
+    method,
+    headers: cloneCodexControlHeaders(
+      request,
+      token,
+      account.chatgptAccountId,
+      hasBody
+    ),
+    body: body && body.byteLength > 0 ? body : undefined,
+  })
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: codexControlResponseHeaders(response.headers),
+  })
 }
