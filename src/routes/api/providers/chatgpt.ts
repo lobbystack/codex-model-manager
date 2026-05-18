@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
 
+import type { ManagedModel } from "@/proxy/model-registry"
 import { fetchChatGptCodexModels, getCodexCatalogModels } from "@/proxy/handlers"
 import { apiJson, apiOptions, readJson } from "@/server/api/json"
 import {
@@ -8,8 +9,29 @@ import {
 } from "@/server/accounts/store"
 import { writeCodexModelCatalog } from "@/server/codex/catalog-file"
 
-async function listChatGptModels() {
+const PROVIDER_MODELS_CACHE_TTL_MS = 5 * 60 * 1000
+
+let chatGptModelsCache:
+  | { expiresAt: number; models: Array<ManagedModel> }
+  | undefined
+
+async function getCachedChatGptCodexModels() {
+  if (chatGptModelsCache && chatGptModelsCache.expiresAt > Date.now()) {
+    return chatGptModelsCache.models
+  }
+
   const models = await fetchChatGptCodexModels()
+
+  chatGptModelsCache = {
+    expiresAt: Date.now() + PROVIDER_MODELS_CACHE_TTL_MS,
+    models,
+  }
+
+  return models
+}
+
+async function listChatGptModels() {
+  const models = await getCachedChatGptCodexModels()
   const settings = await listChatGptModelSettings()
   const settingsById = new Map(settings.map((model) => [model.id, model]))
 

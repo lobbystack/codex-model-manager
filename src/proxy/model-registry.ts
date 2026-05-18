@@ -1,4 +1,4 @@
-export type ProviderId = "openai-pool" | "openrouter"
+export type ProviderId = "openai-pool" | "openrouter" | "opencode-zen"
 
 export type ManagedModel = {
   id: string
@@ -13,6 +13,7 @@ export type ManagedModel = {
   reasoningCapability?: ReasoningCapability
   contextWindow: number
   outputLimit: number
+  inputModalities?: Array<string>
   codexModelInfo?: CodexModelInfo
 }
 
@@ -74,7 +75,25 @@ export type OpenRouterModelSetting = {
   supportedParameters?: Array<string>
   contextWindow: number
   outputLimit: number
+  inputModalities?: Array<string>
 }
+
+export type OpenCodeZenModelFamily = "responses" | "chat" | "messages" | "gemini"
+
+export type OpenCodeZenModelSetting = {
+  id: string
+  displayName: string
+  upstreamModel: string
+  enabled: boolean
+  supportsReasoning?: boolean
+  supportedParameters?: Array<string>
+  contextWindow: number
+  outputLimit: number
+  inputModalities?: Array<string>
+}
+
+const TEXT_MODALITIES = ["text"]
+const ZEN_INPUT_MODALITIES = ["text", "image"]
 
 const DEFAULT_EFFORT_LEVELS: Array<ReasoningEffortLevel> = [
   "low",
@@ -131,6 +150,47 @@ export function inferOpenRouterReasoningCapability(
   return { kind: "none" }
 }
 
+export function openCodeZenModelFamily(modelId: string): OpenCodeZenModelFamily {
+  const upstreamModel = modelId.replace(/^opencode\//, "")
+
+  if (upstreamModel.startsWith("claude-")) {
+    return "messages"
+  }
+
+  if (upstreamModel.startsWith("gemini-")) {
+    return "gemini"
+  }
+
+  if (upstreamModel.startsWith("gpt-")) {
+    return "responses"
+  }
+
+  return "chat"
+}
+
+export function inferOpenCodeZenReasoningCapability(
+  modelId: string
+): ReasoningCapability {
+  const upstreamModel = modelId.replace(/^opencode\//, "")
+
+  if (
+    upstreamModel.startsWith("gpt-") ||
+    upstreamModel.startsWith("gemini-")
+  ) {
+    return { kind: "effort", levels: DEFAULT_EFFORT_LEVELS }
+  }
+
+  if (upstreamModel.startsWith("claude-")) {
+    return { kind: "budget" }
+  }
+
+  if (upstreamModel.startsWith("kimi-")) {
+    return { kind: "binary", enabledByDefault: true }
+  }
+
+  return { kind: "none" }
+}
+
 function supportsReasoning(capability: ReasoningCapability) {
   return capability.kind !== "none"
 }
@@ -148,6 +208,7 @@ export const managedModels: Array<ManagedModel> = [
     reasoningCapability: { kind: "effort", levels: DEFAULT_EFFORT_LEVELS },
     contextWindow: 272000,
     outputLimit: 65536,
+    inputModalities: TEXT_MODALITIES,
   },
   {
     id: "gpt-5.3-codex-spark",
@@ -161,6 +222,7 @@ export const managedModels: Array<ManagedModel> = [
     reasoningCapability: { kind: "effort", levels: DEFAULT_EFFORT_LEVELS },
     contextWindow: 128000,
     outputLimit: 65536,
+    inputModalities: TEXT_MODALITIES,
   },
   {
     id: "openrouter/anthropic/claude-sonnet-4.5",
@@ -173,6 +235,7 @@ export const managedModels: Array<ManagedModel> = [
     supportsReasoning: true,
     contextWindow: 200000,
     outputLimit: 64000,
+    inputModalities: TEXT_MODALITIES,
   },
   {
     id: "openrouter/google/gemini-2.5-pro",
@@ -185,6 +248,7 @@ export const managedModels: Array<ManagedModel> = [
     supportsReasoning: true,
     contextWindow: 1048576,
     outputLimit: 65536,
+    inputModalities: TEXT_MODALITIES,
   },
   {
     id: "openrouter/qwen/qwen3-coder",
@@ -197,6 +261,7 @@ export const managedModels: Array<ManagedModel> = [
     supportsReasoning: false,
     contextWindow: 262144,
     outputLimit: 32768,
+    inputModalities: TEXT_MODALITIES,
   },
 ]
 
@@ -231,6 +296,31 @@ export function openRouterSettingToManagedModel(
     reasoningCapability,
     contextWindow: model.contextWindow,
     outputLimit: model.outputLimit,
+    inputModalities: model.inputModalities || TEXT_MODALITIES,
+  }
+}
+
+export function openCodeZenSettingToManagedModel(
+  model: OpenCodeZenModelSetting
+): ManagedModel {
+  const reasoningCapability = inferOpenCodeZenReasoningCapability(model.id)
+  const family = openCodeZenModelFamily(model.id)
+
+  return {
+    id: model.id,
+    displayName: model.displayName,
+    provider: "opencode-zen",
+    upstreamModel: model.upstreamModel,
+    enabled: model.enabled,
+    supportsResponses: true,
+    supportsChatCompletions: family === "chat",
+    supportsReasoning:
+      model.supportsReasoning ?? supportsReasoning(reasoningCapability),
+    supportedParameters: model.supportedParameters || [],
+    reasoningCapability,
+    contextWindow: model.contextWindow,
+    outputLimit: model.outputLimit,
+    inputModalities: model.inputModalities || ZEN_INPUT_MODALITIES,
   }
 }
 
@@ -253,6 +343,7 @@ export function codexModelInfoToManagedModel(model: CodexModelInfo): ManagedMode
         : { kind: "none" },
     contextWindow,
     outputLimit: 0,
+    inputModalities: model.input_modalities || TEXT_MODALITIES,
     codexModelInfo: model,
   }
 }

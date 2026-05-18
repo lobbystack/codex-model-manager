@@ -10,7 +10,7 @@ import {
 
 export function AppLayout({
   children,
-  proxyUrl = "http://127.0.0.1:3000",
+  proxyUrl = "http://127.0.0.1:1455",
 }: {
   children: React.ReactNode
   proxyUrl?: string
@@ -66,7 +66,7 @@ export function AppLayout({
       </aside>
 
       {/* Main Content */}
-      <div className="flex flex-1 flex-col sm:pl-64">{children}</div>
+      <div className="flex min-w-0 flex-1 flex-col sm:pl-64 w-full">{children}</div>
     </div>
   )
 }

@@ -20,7 +20,7 @@ export const Route = createFileRoute("/providers/")({
 })
 
 type ProviderStatus = "Active" | "Rate limited" | "Disconnected"
-type ProviderType = "ChatGPT" | "OpenRouter"
+type ProviderType = "ChatGPT" | "OpenRouter" | "OpenCode Zen"
 
 interface Provider {
   id: string
@@ -40,7 +40,7 @@ type AccountResponse = {
   }>
   apiKeyProviders: Array<{
     id: string
-    type: "openrouter"
+    type: "openrouter" | "opencode-zen"
     name: string
     keyPrefix: string
     status: "active"
@@ -81,7 +81,7 @@ function ProvidersPage() {
       name: provider.name,
       plan: provider.keyPrefix,
       status: "Active" as const,
-      type: "OpenRouter" as const,
+      type: provider.type === "opencode-zen" ? "OpenCode Zen" as const : "OpenRouter" as const,
     }))
     const nextProviders = [...chatGptProviders, ...apiKeyProviders]
 
@@ -144,8 +144,8 @@ function ProvidersPage() {
 
               {!isLoading && providers.length === 0 ? (
                 <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                  No providers connected. Add a ChatGPT account to start routing
-                  Codex requests.
+                  No providers connected. Add a provider to start routing Codex
+                  requests.
                 </div>
               ) : null}
 

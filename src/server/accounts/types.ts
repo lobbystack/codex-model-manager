@@ -27,7 +27,7 @@ export type PublicAccount = {
 
 export type StoredApiKeyProvider = {
   id: string
-  type: "openrouter"
+  type: "openrouter" | "opencode-zen"
   name: string
   keyEncrypted: string
   keyPrefix: string
@@ -48,10 +48,27 @@ export type StoredOpenRouterModel = {
   supportedParameters?: Array<string>
   contextWindow: number
   outputLimit: number
+  inputModalities?: Array<string>
   updatedAt: string
 }
 
 export type PublicOpenRouterModel = StoredOpenRouterModel
+
+export type StoredOpenCodeZenModel = {
+  id: string
+  displayName: string
+  providerName: string
+  upstreamModel: string
+  enabled: boolean
+  supportsReasoning?: boolean
+  supportedParameters?: Array<string>
+  contextWindow: number
+  outputLimit: number
+  inputModalities?: Array<string>
+  updatedAt: string
+}
+
+export type PublicOpenCodeZenModel = StoredOpenCodeZenModel
 
 export type StoredChatGptModel = {
   id: string

@@ -1,4 +1,5 @@
-import { Key, Trash2 } from "lucide-react"
+import { Clock, Key, Trash2 } from "lucide-react"
+import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,8 +18,120 @@ interface ProviderDetailsProps {
   provider: Provider
 }
 
+type UsageLimitWindow = {
+  remainingPercent: number | null
+  resetAt: number | null
+}
+
+type UsageLimitResponse = {
+  ok: boolean
+  usage?: {
+    primaryWindow: UsageLimitWindow | null
+    secondaryWindow: UsageLimitWindow | null
+  }
+}
+
+function formatWholePercent(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return "--"
+  }
+
+  return `${Math.round(value)}%`
+}
+
+function formatResetLabel(resetAt: number | null | undefined) {
+  if (!resetAt) {
+    return "Reset unavailable"
+  }
+
+  const diffMs = resetAt * 1000 - Date.now()
+
+  if (diffMs <= 0) {
+    return "Resetting..."
+  }
+
+  const days = Math.floor(diffMs / (24 * 60 * 60 * 1000))
+  const hours = Math.floor(diffMs / (60 * 60 * 1000))
+  const minutes = Math.floor(diffMs / (60 * 1000))
+
+  if (days > 0) {
+    return `Resets in ${days} ${days === 1 ? "day" : "days"}`
+  }
+
+  if (hours > 0) {
+    return `Resets in ${hours}h`
+  }
+
+  return `Resets in ${Math.max(1, minutes)}m`
+}
+
+function UsageLimitMeter({
+  label,
+  window,
+}: {
+  label: string
+  window: UsageLimitWindow | null | undefined
+}) {
+  const remaining = window?.remainingPercent ?? null
+
+  return (
+    <div className="grid gap-3">
+      <div className="flex items-center justify-between gap-4 text-base">
+        <span className="font-medium">{label} remaining</span>
+        <span className="font-mono text-emerald-500">
+          {formatWholePercent(remaining)}
+        </span>
+      </div>
+      <Progress
+        value={remaining ?? 0}
+        className="[&_[data-slot=progress-indicator]]:bg-emerald-500 [&_[data-slot=progress-track]]:h-2 [&_[data-slot=progress-track]]:bg-emerald-950/40"
+      />
+      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <Clock className="size-4" />
+        <span>{formatResetLabel(window?.resetAt).replace(/^Resets/, "Reset")}</span>
+      </div>
+    </div>
+  )
+}
+
+export function ChatGptUsageCard() {
+  const [usageLimit, setUsageLimit] = useState<
+    UsageLimitResponse["usage"] | null
+  >(null)
+
+  useEffect(() => {
+    async function loadUsageLimit() {
+      const response = await fetch("/api/codex/usage-limit")
+
+      if (!response.ok) {
+        return
+      }
+
+      const data = (await response.json()) as UsageLimitResponse
+      setUsageLimit(data.usage || null)
+    }
+
+    void loadUsageLimit()
+  }, [])
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-medium tracking-wider text-muted-foreground uppercase">
+          Usage
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-6 lg:grid-cols-2">
+        <UsageLimitMeter label="5h" window={usageLimit?.primaryWindow} />
+        <UsageLimitMeter label="Weekly" window={usageLimit?.secondaryWindow} />
+      </CardContent>
+    </Card>
+  )
+}
+
 export function ProviderDetails({ provider }: ProviderDetailsProps) {
   const isChatGPT = provider.type === "ChatGPT"
+  const isOpenCodeZen = provider.type === "OpenCode Zen"
 
   return (
     <div className="flex animate-in flex-col gap-6 duration-300 fade-in-50">
@@ -41,34 +154,7 @@ export function ProviderDetails({ provider }: ProviderDetailsProps) {
 
       {isChatGPT ? (
         <>
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium tracking-wider text-muted-foreground uppercase">
-                Usage
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium">Weekly Rate Limit</span>
-                  <span className="font-mono text-emerald-500">97%</span>
-                </div>
-                <Progress value={97} />
-                <div className="flex items-center justify-between pt-1 text-xs text-muted-foreground">
-                  <span>Resets in 5 days</span>
-                  <div className="flex items-center gap-4">
-                    <span className="flex items-center gap-1.5">
-                      <span className="size-2 rounded-full bg-primary" /> 5h
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <span className="size-2 rounded-full bg-emerald-500" />
-                      Weekly
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <ChatGptUsageCard />
 
           <Card>
             <CardHeader className="pb-3">
@@ -111,7 +197,7 @@ export function ProviderDetails({ provider }: ProviderDetailsProps) {
               </div>
               <div className="flex items-center gap-2">
                 <span className="font-mono text-sm">
-                  sk-or-v1-••••••••••••
+                  {isOpenCodeZen ? "zen-••••••••••••" : "sk-or-v1-••••••••••••"}
                 </span>
                 <Button
                   className="h-8 w-8 text-muted-foreground"
@@ -132,7 +218,9 @@ export function ProviderDetails({ provider }: ProviderDetailsProps) {
                 </span>
               </div>
               <span className="font-mono text-sm text-muted-foreground">
-                https://openrouter.ai/api/v1
+                {isOpenCodeZen
+                  ? "https://opencode.ai/zen/v1"
+                  : "https://openrouter.ai/api/v1"}
               </span>
             </div>
           </CardContent>

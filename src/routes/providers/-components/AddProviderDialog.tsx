@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-type Step = "choose" | "chatgpt" | "openrouter"
+type Step = "choose" | "chatgpt" | "openrouter" | "opencode-zen"
 type OAuthStage = "intro" | "browser" | "device" | "success" | "error"
 
 type OAuthState = {
@@ -87,7 +87,10 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
   const [currentPort, setCurrentPort] = useState("")
   const [openRouterKey, setOpenRouterKey] = useState("")
   const [openRouterError, setOpenRouterError] = useState<string | null>(null)
+  const [openCodeZenKey, setOpenCodeZenKey] = useState("")
+  const [openCodeZenError, setOpenCodeZenError] = useState<string | null>(null)
   const [isSavingOpenRouter, setIsSavingOpenRouter] = useState(false)
+  const [isSavingOpenCodeZen, setIsSavingOpenCodeZen] = useState(false)
   const [manualCallbackUrl, setManualCallbackUrl] = useState("")
   const [oauthState, setOAuthState] = useState<OAuthState>(initialOAuthState)
   const isRegisteredOAuthPort = currentPort === "1455"
@@ -100,7 +103,10 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
         setMethod("browser")
         setOpenRouterKey("")
         setOpenRouterError(null)
+        setOpenCodeZenKey("")
+        setOpenCodeZenError(null)
         setIsSavingOpenRouter(false)
+        setIsSavingOpenCodeZen(false)
         setManualCallbackUrl("")
         setOAuthState(initialOAuthState)
       }, 300)
@@ -228,6 +234,25 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
     }
   }
 
+  async function saveOpenCodeZenKey() {
+    setOpenCodeZenError(null)
+    setIsSavingOpenCodeZen(true)
+
+    try {
+      await postJson("/api/providers/opencode-zen", { apiKey: openCodeZenKey })
+      onConnected()
+      handleOpenChange(false)
+    } catch (error) {
+      setOpenCodeZenError(
+        error instanceof Error
+          ? error.message
+          : "Failed to save OpenCode Zen key."
+      )
+    } finally {
+      setIsSavingOpenCodeZen(false)
+    }
+  }
+
   useEffect(() => {
     setCurrentPort(window.location.port)
   }, [])
@@ -282,6 +307,7 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
             {step === "choose" ? "Add Provider" : null}
             {step === "chatgpt" ? "Sign in with ChatGPT" : null}
             {step === "openrouter" ? "Add OpenRouter API Key" : null}
+            {step === "opencode-zen" ? "Add OpenCode Zen API Key" : null}
           </DialogTitle>
           <DialogDescription>
             {step === "choose" ? "Choose a provider type to connect." : null}
@@ -290,6 +316,9 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
               : null}
             {step === "openrouter"
               ? "Enter your OpenRouter API key to connect the provider."
+              : null}
+            {step === "opencode-zen"
+              ? "Enter your OpenCode Zen API key to connect the provider."
               : null}
           </DialogDescription>
         </DialogHeader>
@@ -326,6 +355,24 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
                 </span>
                 <span className="text-xs text-muted-foreground">
                   Connect using a standard API key.
+                </span>
+              </div>
+            </button>
+
+            <button
+              className="flex items-start gap-4 rounded-lg border p-4 text-left transition-colors hover:bg-accent focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none"
+              onClick={() => setStep("opencode-zen")}
+              type="button"
+            >
+              <div className="flex size-10 items-center justify-center rounded-full bg-muted">
+                <Key className="size-5 text-foreground" />
+              </div>
+              <div className="grid gap-1">
+                <span className="text-sm font-semibold">
+                  OpenCode Zen API Key
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  Connect using your Zen pay-as-you-go API key.
                 </span>
               </div>
             </button>
@@ -488,6 +535,27 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
           </div>
         ) : null}
 
+        {step === "opencode-zen" ? (
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="openCodeZenApiKey">API Key</Label>
+              <Input
+                autoComplete="off"
+                id="openCodeZenApiKey"
+                onChange={(event) => setOpenCodeZenKey(event.target.value)}
+                placeholder="opencode_..."
+                type="password"
+                value={openCodeZenKey}
+              />
+            </div>
+            {openCodeZenError ? (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                {openCodeZenError}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
         <DialogFooter className="gap-2 sm:justify-end sm:gap-0">
           {step !== "choose" ? (
             <Button
@@ -518,6 +586,14 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
               onClick={() => void saveOpenRouterKey()}
             >
               {isSavingOpenRouter ? "Saving..." : "Save API Key"}
+            </Button>
+          ) : null}
+          {step === "opencode-zen" ? (
+            <Button
+              disabled={!openCodeZenKey.trim() || isSavingOpenCodeZen}
+              onClick={() => void saveOpenCodeZenKey()}
+            >
+              {isSavingOpenCodeZen ? "Saving..." : "Save API Key"}
             </Button>
           ) : null}
         </DialogFooter>

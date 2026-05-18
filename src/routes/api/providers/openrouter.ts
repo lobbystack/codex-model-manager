@@ -19,10 +19,19 @@ type OpenRouterModel = {
   name?: string
   context_length?: number
   supported_parameters?: Array<string>
+  architecture?: {
+    input_modalities?: Array<string>
+  }
   top_provider?: {
     max_completion_tokens?: number
   }
 }
+
+const PROVIDER_MODELS_CACHE_TTL_MS = 5 * 60 * 1000
+
+let openRouterModelsCache:
+  | { expiresAt: number; models: Array<OpenRouterModel> }
+  | undefined
 
 const enabledOpenRouterModelIds = new Set(
   managedModels
@@ -54,6 +63,7 @@ function toManagedOpenRouterModel(
       providerName: string
       supportsReasoning?: boolean
       supportedParameters?: Array<string>
+      inputModalities?: Array<string>
     }
   >,
   hasOpenRouterSettings: boolean
@@ -62,6 +72,8 @@ function toManagedOpenRouterModel(
   const providerSlug = model.id.split("/")[0] || "openrouter"
   const setting = settingsById.get(id)
   const supportedParameters = model.supported_parameters || setting?.supportedParameters || []
+  const inputModalities =
+    model.architecture?.input_modalities || setting?.inputModalities || ["text"]
   const reasoningCapability = inferOpenRouterReasoningCapability(
     id,
     supportedParameters
@@ -84,10 +96,11 @@ function toManagedOpenRouterModel(
     reasoningCapability,
     contextWindow: model.context_length || 0,
     outputLimit: model.top_provider?.max_completion_tokens || 0,
+    inputModalities,
   }
 }
 
-async function listOpenRouterModels() {
+async function fetchOpenRouterModels() {
   const key = (await getOpenRouterKey()) || process.env.OPENROUTER_API_KEY
   const headers = new Headers({ accept: "application/json" })
 
@@ -100,19 +113,47 @@ async function listOpenRouterModels() {
   })
 
   if (!response.ok) {
-    return apiJson(
-      { error: { message: "Unable to load OpenRouter models." } },
-      response.status
-    )
+    throw response
   }
 
   const data = (await response.json()) as { data?: Array<OpenRouterModel> }
+
+  return data.data || []
+}
+
+async function getCachedOpenRouterModels() {
+  if (openRouterModelsCache && openRouterModelsCache.expiresAt > Date.now()) {
+    return openRouterModelsCache.models
+  }
+
+  const models = await fetchOpenRouterModels()
+
+  openRouterModelsCache = {
+    expiresAt: Date.now() + PROVIDER_MODELS_CACHE_TTL_MS,
+    models,
+  }
+
+  return models
+}
+
+async function listOpenRouterModels() {
+  let upstreamModels: Array<OpenRouterModel>
+
+  try {
+    upstreamModels = await getCachedOpenRouterModels()
+  } catch (error) {
+    return apiJson(
+      { error: { message: "Unable to load OpenRouter models." } },
+      error instanceof Response ? error.status : 500
+    )
+  }
+
   const settings = await listOpenRouterModelSettings()
   const hasOpenRouterSettings = settings.length > 0
   const settingsById = new Map(settings.map((model) => [model.id, model]))
 
   return apiJson({
-    models: (data.data || []).map((model) =>
+    models: upstreamModels.map((model) =>
       toManagedOpenRouterModel(model, settingsById, hasOpenRouterSettings)
     ),
   })
@@ -157,6 +198,9 @@ async function updateOpenRouterModel(request: Request) {
   const supportedParameters = Array.isArray(body.supportedParameters)
     ? body.supportedParameters.filter((parameter) => typeof parameter === "string")
     : existing?.supportedParameters || []
+  const inputModalities = Array.isArray(body.inputModalities)
+    ? body.inputModalities.filter((modality) => typeof modality === "string")
+    : existing?.inputModalities || ["text"]
   const supportsReasoning =
     typeof body.supportsReasoning === "boolean"
       ? body.supportsReasoning
@@ -173,6 +217,7 @@ async function updateOpenRouterModel(request: Request) {
     supportedParameters,
     contextWindow,
     outputLimit,
+    inputModalities,
   })
 
   await writeCodexModelCatalog(await getEnabledModels())
@@ -197,7 +242,11 @@ export const Route = createFileRoute("/api/providers/openrouter")({
           )
         }
 
-        return apiJson({ provider: await upsertOpenRouterKey(body.apiKey) })
+        const provider = await upsertOpenRouterKey(body.apiKey)
+
+        openRouterModelsCache = undefined
+
+        return apiJson({ provider })
       },
       OPTIONS: () => apiOptions(),
     },

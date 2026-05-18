@@ -25,6 +25,10 @@ function shellType(_model: ManagedModel) {
   return "shell_command"
 }
 
+function inputModalities(model: ManagedModel) {
+  return model.inputModalities?.length ? model.inputModalities : ["text"]
+}
+
 export function toCodexModelCatalog(models: Array<ManagedModel>) {
   return {
     models: models.map((model, index) => {
@@ -62,7 +66,7 @@ export function toCodexModelCatalog(models: Array<ManagedModel>) {
           limit: model.contextWindow || 128000,
         },
         supports_parallel_tool_calls: true,
-        supports_image_detail_original: false,
+        supports_image_detail_original: inputModalities(model).includes("image"),
         context_window: model.contextWindow || null,
         max_context_window: model.contextWindow || null,
         auto_compact_token_limit: model.contextWindow
@@ -70,7 +74,7 @@ export function toCodexModelCatalog(models: Array<ManagedModel>) {
           : null,
         effective_context_window_percent: 95,
         experimental_supported_tools: [],
-        input_modalities: ["text"],
+        input_modalities: inputModalities(model),
         supports_search_tool: false,
       }
     }),

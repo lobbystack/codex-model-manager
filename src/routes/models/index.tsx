@@ -18,7 +18,7 @@ export const Route = createFileRoute("/models/")({
   component: ModelsPage,
 })
 
-type ProviderTab = "chatgpt" | "openrouter"
+type ProviderTab = "chatgpt" | "openrouter" | "opencode-zen"
 
 type ModelRow = {
   id: string
@@ -31,6 +31,7 @@ type ModelRow = {
   supportedParameters: Array<string>
   contextWindow: number
   outputLimit: number
+  inputModalities: Array<string>
   icon: ElementType
 }
 
@@ -45,6 +46,7 @@ type ProviderModelsResponse = {
     supportedParameters: Array<string>
     contextWindow: number
     outputLimit: number
+    inputModalities?: Array<string>
   }>
   error?: {
     message?: string
@@ -55,7 +57,9 @@ const providerIcons: Record<string, ElementType | undefined> = {
   anthropic: Activity,
   chatgpt: Triangle,
   google: Zap,
+  moonshot: Activity,
   openai: Triangle,
+  opencode: Triangle,
   qwen: Activity,
 }
 
@@ -71,13 +75,49 @@ const modelAesthetics: Record<
   "openrouter/qwen/qwen3-coder": { icon: Activity, providerName: "Qwen" },
 }
 
+const providerModelCache: Partial<Record<ProviderTab, Array<ModelRow>>> = {}
+
 function iconForModel(id: string) {
-  if (!id.startsWith("openrouter/")) {
+  if (!id.startsWith("openrouter/") && !id.startsWith("opencode/")) {
+    return Triangle
+  }
+
+  if (id.startsWith("opencode/")) {
+    const model = id.replace(/^opencode\//, "")
+
+    if (model.startsWith("claude-")) {
+      return Activity
+    }
+
+    if (model.startsWith("gemini-")) {
+      return Zap
+    }
+
     return Triangle
   }
 
   const providerSlug = id.replace(/^openrouter\//, "").split("/")[0]
   return modelAesthetics[id]?.icon || providerIcons[providerSlug] || Activity
+}
+
+function toModelRows(
+  models: NonNullable<ProviderModelsResponse["models"]>,
+  provider: ProviderTab
+) {
+  return models.map((model) => ({
+    id: model.id,
+    displayName: model.displayName,
+    provider,
+    providerName: modelAesthetics[model.id]?.providerName || model.providerName,
+    upstreamModel: model.upstreamModel,
+    enabled: model.enabled,
+    supportsReasoning: model.supportsReasoning,
+    supportedParameters: model.supportedParameters,
+    contextWindow: model.contextWindow,
+    outputLimit: model.outputLimit,
+    inputModalities: model.inputModalities || ["text"],
+    icon: iconForModel(model.id),
+  }))
 }
 
 function ModelsPage() {
@@ -96,19 +136,37 @@ function ModelsPage() {
   const tabs = [
     { id: "chatgpt", label: "ChatGPT" },
     { id: "openrouter", label: "OpenRouter" },
+    { id: "opencode-zen", label: "OpenCode Zen" },
   ] as const
   const activeTabLabel =
     tabs.find((tab) => tab.id === activeTab)?.label || "provider"
 
-  const filteredModels = models.filter(
-    (model) =>
-      model.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      model.providerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      model.id.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const isEnabled = (id: string, defaultState: boolean) => {
+    return enabledStates[id] !== undefined ? enabledStates[id] : defaultState
+  }
+
+  const filteredModels = models
+    .filter(
+      (model) =>
+        model.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        model.providerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        model.id.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .sort((a, b) => {
+      return Number(isEnabled(b.id, b.enabled)) - Number(isEnabled(a.id, a.enabled))
+    })
 
   useEffect(() => {
     async function loadProviderModels() {
+      const cachedModels = providerModelCache[activeTab]
+
+      if (cachedModels) {
+        setModels(cachedModels)
+        setIsLoading(false)
+        setError(null)
+        return
+      }
+
       setIsLoading(true)
       setError(null)
 
@@ -122,22 +180,10 @@ function ModelsPage() {
           )
         }
 
-        setModels(
-          (data.models || []).map((model) => ({
-            id: model.id,
-            displayName: model.displayName,
-            provider: activeTab,
-            providerName:
-              modelAesthetics[model.id]?.providerName || model.providerName,
-            upstreamModel: model.upstreamModel,
-            enabled: model.enabled,
-            supportsReasoning: model.supportsReasoning,
-            supportedParameters: model.supportedParameters,
-            contextWindow: model.contextWindow,
-            outputLimit: model.outputLimit,
-            icon: iconForModel(model.id),
-          }))
-        )
+        const nextModels = toModelRows(data.models || [], activeTab)
+
+        providerModelCache[activeTab] = nextModels
+        setModels(nextModels)
       } catch (loadError) {
         setError(
           loadError instanceof Error
@@ -176,6 +222,7 @@ function ModelsPage() {
           supportedParameters: model.supportedParameters,
           contextWindow: model.contextWindow,
           outputLimit: model.outputLimit,
+          inputModalities: model.inputModalities,
         }),
       })
       const data = (await response.json()) as ProviderModelsResponse
@@ -185,9 +232,16 @@ function ModelsPage() {
       }
 
       setModels((prev) =>
-        prev.map((candidate) =>
+        prev.map((candidate) => {
+          const nextCandidate =
+            candidate.id === model.id ? { ...candidate, enabled } : candidate
+
+          return nextCandidate
+        })
+      )
+      providerModelCache[model.provider] = providerModelCache[model.provider]?.map(
+        (candidate) =>
           candidate.id === model.id ? { ...candidate, enabled } : candidate
-        )
       )
     } catch (saveError) {
       setEnabledStates((prev) => ({ ...prev, [model.id]: model.enabled }))
@@ -199,10 +253,6 @@ function ModelsPage() {
     } finally {
       setSavingStates((prev) => ({ ...prev, [model.id]: false }))
     }
-  }
-
-  const isEnabled = (id: string, defaultState: boolean) => {
-    return enabledStates[id] !== undefined ? enabledStates[id] : defaultState
   }
 
   return (

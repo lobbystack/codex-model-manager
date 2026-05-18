@@ -16,18 +16,22 @@ import { Route as ModelsIndexRouteImport } from './routes/models/index'
 import { Route as V1ResponsesRouteImport } from './routes/v1/responses'
 import { Route as V1ModelsRouteImport } from './routes/v1/models'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
+import { Route as ApiUsageRouteImport } from './routes/api/usage'
 import { Route as ApiModelsRouteImport } from './routes/api/models'
 import { Route as ApiAccountsRouteImport } from './routes/api/accounts'
 import { Route as V1ChatCompletionsRouteImport } from './routes/v1/chat/completions'
 import { Route as BackendApiCodexResponsesRouteImport } from './routes/backend-api/codex/responses'
 import { Route as BackendApiCodexModelsRouteImport } from './routes/backend-api/codex/models'
 import { Route as ApiProvidersOpenrouterRouteImport } from './routes/api/providers/openrouter'
+import { Route as ApiProvidersOpencodeZenRouteImport } from './routes/api/providers/opencode-zen'
 import { Route as ApiProvidersChatgptRouteImport } from './routes/api/providers/chatgpt'
 import { Route as ApiOauthStatusRouteImport } from './routes/api/oauth/status'
 import { Route as ApiOauthStartRouteImport } from './routes/api/oauth/start'
 import { Route as ApiOauthManualCallbackRouteImport } from './routes/api/oauth/manual-callback'
 import { Route as ApiOauthCompleteRouteImport } from './routes/api/oauth/complete'
+import { Route as ApiCodexUsageLimitRouteImport } from './routes/api/codex/usage-limit'
 import { Route as ApiCodexModelCatalogRouteImport } from './routes/api/codex/model-catalog'
+import { Route as ApiCodexInstallConfigRouteImport } from './routes/api/codex/install-config'
 
 const HealthRoute = HealthRouteImport.update({
   id: '/health',
@@ -64,6 +68,11 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiUsageRoute = ApiUsageRouteImport.update({
+  id: '/api/usage',
+  path: '/api/usage',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiModelsRoute = ApiModelsRouteImport.update({
   id: '/api/models',
   path: '/api/models',
@@ -95,6 +104,11 @@ const ApiProvidersOpenrouterRoute = ApiProvidersOpenrouterRouteImport.update({
   path: '/api/providers/openrouter',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiProvidersOpencodeZenRoute = ApiProvidersOpencodeZenRouteImport.update({
+  id: '/api/providers/opencode-zen',
+  path: '/api/providers/opencode-zen',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiProvidersChatgptRoute = ApiProvidersChatgptRouteImport.update({
   id: '/api/providers/chatgpt',
   path: '/api/providers/chatgpt',
@@ -120,9 +134,19 @@ const ApiOauthCompleteRoute = ApiOauthCompleteRouteImport.update({
   path: '/api/oauth/complete',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCodexUsageLimitRoute = ApiCodexUsageLimitRouteImport.update({
+  id: '/api/codex/usage-limit',
+  path: '/api/codex/usage-limit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCodexModelCatalogRoute = ApiCodexModelCatalogRouteImport.update({
   id: '/api/codex/model-catalog',
   path: '/api/codex/model-catalog',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCodexInstallConfigRoute = ApiCodexInstallConfigRouteImport.update({
+  id: '/api/codex/install-config',
+  path: '/api/codex/install-config',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -131,17 +155,21 @@ export interface FileRoutesByFullPath {
   '/health': typeof HealthRoute
   '/api/accounts': typeof ApiAccountsRoute
   '/api/models': typeof ApiModelsRoute
+  '/api/usage': typeof ApiUsageRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/v1/models': typeof V1ModelsRoute
   '/v1/responses': typeof V1ResponsesRoute
   '/models/': typeof ModelsIndexRoute
   '/providers/': typeof ProvidersIndexRoute
+  '/api/codex/install-config': typeof ApiCodexInstallConfigRoute
   '/api/codex/model-catalog': typeof ApiCodexModelCatalogRoute
+  '/api/codex/usage-limit': typeof ApiCodexUsageLimitRoute
   '/api/oauth/complete': typeof ApiOauthCompleteRoute
   '/api/oauth/manual-callback': typeof ApiOauthManualCallbackRoute
   '/api/oauth/start': typeof ApiOauthStartRoute
   '/api/oauth/status': typeof ApiOauthStatusRoute
   '/api/providers/chatgpt': typeof ApiProvidersChatgptRoute
+  '/api/providers/opencode-zen': typeof ApiProvidersOpencodeZenRoute
   '/api/providers/openrouter': typeof ApiProvidersOpenrouterRoute
   '/backend-api/codex/models': typeof BackendApiCodexModelsRoute
   '/backend-api/codex/responses': typeof BackendApiCodexResponsesRoute
@@ -152,17 +180,21 @@ export interface FileRoutesByTo {
   '/health': typeof HealthRoute
   '/api/accounts': typeof ApiAccountsRoute
   '/api/models': typeof ApiModelsRoute
+  '/api/usage': typeof ApiUsageRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/v1/models': typeof V1ModelsRoute
   '/v1/responses': typeof V1ResponsesRoute
   '/models': typeof ModelsIndexRoute
   '/providers': typeof ProvidersIndexRoute
+  '/api/codex/install-config': typeof ApiCodexInstallConfigRoute
   '/api/codex/model-catalog': typeof ApiCodexModelCatalogRoute
+  '/api/codex/usage-limit': typeof ApiCodexUsageLimitRoute
   '/api/oauth/complete': typeof ApiOauthCompleteRoute
   '/api/oauth/manual-callback': typeof ApiOauthManualCallbackRoute
   '/api/oauth/start': typeof ApiOauthStartRoute
   '/api/oauth/status': typeof ApiOauthStatusRoute
   '/api/providers/chatgpt': typeof ApiProvidersChatgptRoute
+  '/api/providers/opencode-zen': typeof ApiProvidersOpencodeZenRoute
   '/api/providers/openrouter': typeof ApiProvidersOpenrouterRoute
   '/backend-api/codex/models': typeof BackendApiCodexModelsRoute
   '/backend-api/codex/responses': typeof BackendApiCodexResponsesRoute
@@ -174,17 +206,21 @@ export interface FileRoutesById {
   '/health': typeof HealthRoute
   '/api/accounts': typeof ApiAccountsRoute
   '/api/models': typeof ApiModelsRoute
+  '/api/usage': typeof ApiUsageRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/v1/models': typeof V1ModelsRoute
   '/v1/responses': typeof V1ResponsesRoute
   '/models/': typeof ModelsIndexRoute
   '/providers/': typeof ProvidersIndexRoute
+  '/api/codex/install-config': typeof ApiCodexInstallConfigRoute
   '/api/codex/model-catalog': typeof ApiCodexModelCatalogRoute
+  '/api/codex/usage-limit': typeof ApiCodexUsageLimitRoute
   '/api/oauth/complete': typeof ApiOauthCompleteRoute
   '/api/oauth/manual-callback': typeof ApiOauthManualCallbackRoute
   '/api/oauth/start': typeof ApiOauthStartRoute
   '/api/oauth/status': typeof ApiOauthStatusRoute
   '/api/providers/chatgpt': typeof ApiProvidersChatgptRoute
+  '/api/providers/opencode-zen': typeof ApiProvidersOpencodeZenRoute
   '/api/providers/openrouter': typeof ApiProvidersOpenrouterRoute
   '/backend-api/codex/models': typeof BackendApiCodexModelsRoute
   '/backend-api/codex/responses': typeof BackendApiCodexResponsesRoute
@@ -197,17 +233,21 @@ export interface FileRouteTypes {
     | '/health'
     | '/api/accounts'
     | '/api/models'
+    | '/api/usage'
     | '/auth/callback'
     | '/v1/models'
     | '/v1/responses'
     | '/models/'
     | '/providers/'
+    | '/api/codex/install-config'
     | '/api/codex/model-catalog'
+    | '/api/codex/usage-limit'
     | '/api/oauth/complete'
     | '/api/oauth/manual-callback'
     | '/api/oauth/start'
     | '/api/oauth/status'
     | '/api/providers/chatgpt'
+    | '/api/providers/opencode-zen'
     | '/api/providers/openrouter'
     | '/backend-api/codex/models'
     | '/backend-api/codex/responses'
@@ -218,17 +258,21 @@ export interface FileRouteTypes {
     | '/health'
     | '/api/accounts'
     | '/api/models'
+    | '/api/usage'
     | '/auth/callback'
     | '/v1/models'
     | '/v1/responses'
     | '/models'
     | '/providers'
+    | '/api/codex/install-config'
     | '/api/codex/model-catalog'
+    | '/api/codex/usage-limit'
     | '/api/oauth/complete'
     | '/api/oauth/manual-callback'
     | '/api/oauth/start'
     | '/api/oauth/status'
     | '/api/providers/chatgpt'
+    | '/api/providers/opencode-zen'
     | '/api/providers/openrouter'
     | '/backend-api/codex/models'
     | '/backend-api/codex/responses'
@@ -239,17 +283,21 @@ export interface FileRouteTypes {
     | '/health'
     | '/api/accounts'
     | '/api/models'
+    | '/api/usage'
     | '/auth/callback'
     | '/v1/models'
     | '/v1/responses'
     | '/models/'
     | '/providers/'
+    | '/api/codex/install-config'
     | '/api/codex/model-catalog'
+    | '/api/codex/usage-limit'
     | '/api/oauth/complete'
     | '/api/oauth/manual-callback'
     | '/api/oauth/start'
     | '/api/oauth/status'
     | '/api/providers/chatgpt'
+    | '/api/providers/opencode-zen'
     | '/api/providers/openrouter'
     | '/backend-api/codex/models'
     | '/backend-api/codex/responses'
@@ -261,17 +309,21 @@ export interface RootRouteChildren {
   HealthRoute: typeof HealthRoute
   ApiAccountsRoute: typeof ApiAccountsRoute
   ApiModelsRoute: typeof ApiModelsRoute
+  ApiUsageRoute: typeof ApiUsageRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   V1ModelsRoute: typeof V1ModelsRoute
   V1ResponsesRoute: typeof V1ResponsesRoute
   ModelsIndexRoute: typeof ModelsIndexRoute
   ProvidersIndexRoute: typeof ProvidersIndexRoute
+  ApiCodexInstallConfigRoute: typeof ApiCodexInstallConfigRoute
   ApiCodexModelCatalogRoute: typeof ApiCodexModelCatalogRoute
+  ApiCodexUsageLimitRoute: typeof ApiCodexUsageLimitRoute
   ApiOauthCompleteRoute: typeof ApiOauthCompleteRoute
   ApiOauthManualCallbackRoute: typeof ApiOauthManualCallbackRoute
   ApiOauthStartRoute: typeof ApiOauthStartRoute
   ApiOauthStatusRoute: typeof ApiOauthStatusRoute
   ApiProvidersChatgptRoute: typeof ApiProvidersChatgptRoute
+  ApiProvidersOpencodeZenRoute: typeof ApiProvidersOpencodeZenRoute
   ApiProvidersOpenrouterRoute: typeof ApiProvidersOpenrouterRoute
   BackendApiCodexModelsRoute: typeof BackendApiCodexModelsRoute
   BackendApiCodexResponsesRoute: typeof BackendApiCodexResponsesRoute
@@ -329,6 +381,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/usage': {
+      id: '/api/usage'
+      path: '/api/usage'
+      fullPath: '/api/usage'
+      preLoaderRoute: typeof ApiUsageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/models': {
       id: '/api/models'
       path: '/api/models'
@@ -371,6 +430,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiProvidersOpenrouterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/providers/opencode-zen': {
+      id: '/api/providers/opencode-zen'
+      path: '/api/providers/opencode-zen'
+      fullPath: '/api/providers/opencode-zen'
+      preLoaderRoute: typeof ApiProvidersOpencodeZenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/providers/chatgpt': {
       id: '/api/providers/chatgpt'
       path: '/api/providers/chatgpt'
@@ -406,11 +472,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiOauthCompleteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/codex/usage-limit': {
+      id: '/api/codex/usage-limit'
+      path: '/api/codex/usage-limit'
+      fullPath: '/api/codex/usage-limit'
+      preLoaderRoute: typeof ApiCodexUsageLimitRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/codex/model-catalog': {
       id: '/api/codex/model-catalog'
       path: '/api/codex/model-catalog'
       fullPath: '/api/codex/model-catalog'
       preLoaderRoute: typeof ApiCodexModelCatalogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/codex/install-config': {
+      id: '/api/codex/install-config'
+      path: '/api/codex/install-config'
+      fullPath: '/api/codex/install-config'
+      preLoaderRoute: typeof ApiCodexInstallConfigRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -421,17 +501,21 @@ const rootRouteChildren: RootRouteChildren = {
   HealthRoute: HealthRoute,
   ApiAccountsRoute: ApiAccountsRoute,
   ApiModelsRoute: ApiModelsRoute,
+  ApiUsageRoute: ApiUsageRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   V1ModelsRoute: V1ModelsRoute,
   V1ResponsesRoute: V1ResponsesRoute,
   ModelsIndexRoute: ModelsIndexRoute,
   ProvidersIndexRoute: ProvidersIndexRoute,
+  ApiCodexInstallConfigRoute: ApiCodexInstallConfigRoute,
   ApiCodexModelCatalogRoute: ApiCodexModelCatalogRoute,
+  ApiCodexUsageLimitRoute: ApiCodexUsageLimitRoute,
   ApiOauthCompleteRoute: ApiOauthCompleteRoute,
   ApiOauthManualCallbackRoute: ApiOauthManualCallbackRoute,
   ApiOauthStartRoute: ApiOauthStartRoute,
   ApiOauthStatusRoute: ApiOauthStatusRoute,
   ApiProvidersChatgptRoute: ApiProvidersChatgptRoute,
+  ApiProvidersOpencodeZenRoute: ApiProvidersOpencodeZenRoute,
   ApiProvidersOpenrouterRoute: ApiProvidersOpenrouterRoute,
   BackendApiCodexModelsRoute: BackendApiCodexModelsRoute,
   BackendApiCodexResponsesRoute: BackendApiCodexResponsesRoute,

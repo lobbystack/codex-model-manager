@@ -8,10 +8,12 @@ import type {
   PublicAccount,
   PublicApiKeyProvider,
   PublicChatGptModel,
+  PublicOpenCodeZenModel,
   PublicOpenRouterModel,
   StoredAccount,
   StoredApiKeyProvider,
   StoredChatGptModel,
+  StoredOpenCodeZenModel,
   StoredOpenRouterModel,
 } from "./types"
 
@@ -19,6 +21,7 @@ type StoreFile = {
   accounts: Array<StoredAccount>
   apiKeyProviders: Array<StoredApiKeyProvider>
   openRouterModels: Array<StoredOpenRouterModel>
+  openCodeZenModels: Array<StoredOpenCodeZenModel>
   chatGptModels: Array<StoredChatGptModel>
 }
 
@@ -92,6 +95,9 @@ async function readStore(): Promise<StoreFile> {
       openRouterModels: Array.isArray(parsed.openRouterModels)
         ? parsed.openRouterModels
         : [],
+      openCodeZenModels: Array.isArray(parsed.openCodeZenModels)
+        ? parsed.openCodeZenModels
+        : [],
       chatGptModels: Array.isArray(parsed.chatGptModels)
         ? parsed.chatGptModels
         : [],
@@ -101,6 +107,7 @@ async function readStore(): Promise<StoreFile> {
       accounts: [],
       apiKeyProviders: [],
       openRouterModels: [],
+      openCodeZenModels: [],
       chatGptModels: [],
     }
   }
@@ -217,6 +224,13 @@ export async function listOpenRouterModelSettings(): Promise<
   return store.openRouterModels
 }
 
+export async function listOpenCodeZenModelSettings(): Promise<
+  Array<PublicOpenCodeZenModel>
+> {
+  const store = await readStore()
+  return store.openCodeZenModels
+}
+
 export async function listChatGptModelSettings(): Promise<
   Array<PublicChatGptModel>
 > {
@@ -274,25 +288,34 @@ export async function upsertOpenRouterModelSetting(
   return nextModel
 }
 
-export async function upsertOpenRouterKey(key: string) {
-  const trimmed = key.trim()
-
-  if (!trimmed) {
-    throw new Error("OpenRouter API key is required")
-  }
-
+export async function upsertOpenCodeZenModelSetting(
+  model: Omit<StoredOpenCodeZenModel, "updatedAt">
+): Promise<PublicOpenCodeZenModel> {
   const now = new Date().toISOString()
-  const provider: StoredApiKeyProvider = {
-    id: "openrouter",
-    type: "openrouter",
-    name: "OpenRouter API",
-    keyEncrypted: await encryptToken(trimmed),
-    keyPrefix: keyPrefix(trimmed),
-    createdAt: now,
-    updatedAt: now,
-    status: "active",
-  }
+  const nextModel = { ...model, updatedAt: now }
 
+  writeQueue = writeQueue.then(async () => {
+    const store = await readStore()
+    const existing = store.openCodeZenModels.findIndex(
+      (candidate) => candidate.id === nextModel.id
+    )
+
+    if (existing >= 0) {
+      store.openCodeZenModels[existing] = nextModel
+    } else {
+      store.openCodeZenModels.push(nextModel)
+    }
+
+    await writeStore(store)
+  })
+
+  await writeQueue
+  return nextModel
+}
+
+async function upsertApiKeyProvider(
+  provider: StoredApiKeyProvider
+): Promise<PublicApiKeyProvider> {
   writeQueue = writeQueue.then(async () => {
     const store = await readStore()
     const existing = store.apiKeyProviders.findIndex(
@@ -313,13 +336,73 @@ export async function upsertOpenRouterKey(key: string) {
   return toPublicApiKeyProvider(provider)
 }
 
+export async function upsertOpenRouterKey(key: string) {
+  const trimmed = key.trim()
+
+  if (!trimmed) {
+    throw new Error("OpenRouter API key is required")
+  }
+
+  const now = new Date().toISOString()
+  const provider: StoredApiKeyProvider = {
+    id: "openrouter",
+    type: "openrouter",
+    name: "OpenRouter API",
+    keyEncrypted: await encryptToken(trimmed),
+    keyPrefix: keyPrefix(trimmed),
+    createdAt: now,
+    updatedAt: now,
+    status: "active",
+  }
+
+  return upsertApiKeyProvider(provider)
+}
+
 export async function getOpenRouterKey() {
   const store = await readStore()
-  if (store.apiKeyProviders.length === 0) {
+  const provider = store.apiKeyProviders.find(
+    (candidate) => candidate.id === "openrouter"
+  )
+
+  if (!provider) {
     return null
   }
 
-  const provider = store.apiKeyProviders[0]
+  return decryptToken(provider.keyEncrypted)
+}
+
+export async function upsertOpenCodeZenKey(key: string) {
+  const trimmed = key.trim()
+
+  if (!trimmed) {
+    throw new Error("OpenCode Zen API key is required")
+  }
+
+  const now = new Date().toISOString()
+  const provider: StoredApiKeyProvider = {
+    id: "opencode-zen",
+    type: "opencode-zen",
+    name: "OpenCode Zen",
+    keyEncrypted: await encryptToken(trimmed),
+    keyPrefix: keyPrefix(trimmed),
+    createdAt: now,
+    updatedAt: now,
+    status: "active",
+  }
+
+  return upsertApiKeyProvider(provider)
+}
+
+export async function getOpenCodeZenKey() {
+  const store = await readStore()
+  const provider = store.apiKeyProviders.find(
+    (candidate) => candidate.id === "opencode-zen"
+  )
+
+  if (!provider) {
+    return null
+  }
+
   return decryptToken(provider.keyEncrypted)
 }
 

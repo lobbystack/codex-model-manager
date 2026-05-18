@@ -1,5 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { Box, Network } from "lucide-react"
+import {
+  AlertTriangle,
+  Check,
+  CircleDollarSign,
+  Hash,
+  ReceiptText,
+} from "lucide-react"
+import { useEffect, useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,8 +30,125 @@ import { managedModels } from "@/proxy/model-registry"
 
 export const Route = createFileRoute("/")({ component: App })
 
+type UsageSummary = {
+  requests: number
+  tokens: number
+  estimatedCostUsd: number
+  realCostUsd: number
+  errorRate: number
+}
+
+const emptyUsage: UsageSummary = {
+  requests: 0,
+  tokens: 0,
+  estimatedCostUsd: 0,
+  realCostUsd: 0,
+  errorRate: 0,
+}
+
+type InstallConfigResponse = {
+  ok: boolean
+  path?: string
+  backupPath?: string | null
+  error?: {
+    message?: string
+  }
+}
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("en", { maximumFractionDigits: 0 }).format(value)
+}
+
+function formatUsd(value: number) {
+  return new Intl.NumberFormat("en", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: value < 1 ? 4 : 2,
+  }).format(value)
+}
+
+function formatPercent(value: number) {
+  return new Intl.NumberFormat("en", {
+    style: "percent",
+    maximumFractionDigits: 1,
+  }).format(value)
+}
+
 function App() {
-  const enabledModels = managedModels.filter((m) => m.enabled)
+  const [usage, setUsage] = useState<UsageSummary>(emptyUsage)
+  const [installStatus, setInstallStatus] = useState<
+    "idle" | "installing" | "installed" | "error"
+  >("idle")
+  const [installMessage, setInstallMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function loadUsage() {
+      const usageResponse = await fetch("/api/usage?range=today")
+
+      if (usageResponse.ok) {
+        setUsage((await usageResponse.json()) as UsageSummary)
+      }
+    }
+
+    void loadUsage()
+  }, [])
+
+  const installConfig = async () => {
+    setInstallStatus("installing")
+    setInstallMessage(null)
+
+    try {
+      const response = await fetch("/api/codex/install-config", {
+        method: "POST",
+      })
+      const data = (await response.json()) as InstallConfigResponse
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error?.message || "Unable to install config.")
+      }
+
+      setInstallStatus("installed")
+      setInstallMessage(`Installed to ${data.path}`)
+    } catch (error) {
+      setInstallStatus("error")
+      setInstallMessage(
+        error instanceof Error ? error.message : "Unable to install config."
+      )
+    }
+  }
+
+  const metricCards = [
+    {
+      title: "Requests",
+      value: formatNumber(usage.requests),
+      note: "Proxied today",
+      icon: ReceiptText,
+    },
+    {
+      title: "Tokens",
+      value: formatNumber(usage.tokens),
+      note: "Input and output",
+      icon: Hash,
+    },
+    {
+      title: "Estimated Cost",
+      value: formatUsd(usage.estimatedCostUsd),
+      note: "API-equivalent spend",
+      icon: CircleDollarSign,
+    },
+    {
+      title: "Real Cost",
+      value: formatUsd(usage.realCostUsd),
+      note: "Actual user cost",
+      icon: CircleDollarSign,
+    },
+    {
+      title: "Error Rate",
+      value: formatPercent(usage.errorRate),
+      note: "Failed requests",
+      icon: AlertTriangle,
+    },
+  ]
 
   return (
     <>
@@ -35,39 +159,56 @@ function App() {
             <span className="size-1.5 rounded-full bg-emerald-500" />
             Proxy Online
           </Badge>
+          <Button
+            size="sm"
+            variant={installStatus === "installed" ? "outline" : "default"}
+            className={
+              installStatus === "installed"
+                ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
+                : undefined
+            }
+            disabled={installStatus === "installing"}
+            title={installMessage || undefined}
+            onClick={() => void installConfig()}
+          >
+            {installStatus === "installing"
+              ? "Installing..."
+              : installStatus === "installed"
+                ? (
+                    <>
+                      <Check className="size-3.5" />
+                      Config installed
+                    </>
+                  )
+                : "Install config"}
+          </Button>
         </div>
       </header>
-      <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Active Models
-              </CardTitle>
-              <Box className="size-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{enabledModels.length}</div>
-              <p className="text-xs text-muted-foreground">
-                Across all providers
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Upstreams</CardTitle>
-              <Network className="size-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">2</div>
-              <p className="text-xs text-muted-foreground">
-                OpenRouter, OpenAI Pool
-              </p>
-            </CardContent>
-          </Card>
+      <main className="grid w-full flex-1 grid-cols-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
+        <div
+          className="col-span-full grid w-full gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-5"
+        >
+          {metricCards.map((metric) => {
+            const Icon = metric.icon
+
+            return (
+              <Card key={metric.title} className="w-full">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    {metric.title}
+                  </CardTitle>
+                  <Icon className="size-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{metric.value}</div>
+                  <p className="text-xs text-muted-foreground">{metric.note}</p>
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
 
-        <Card className="xl:col-span-2">
+        <Card className="col-span-full">
           <CardHeader className="flex flex-row items-center">
             <div className="grid gap-2">
               <CardTitle>Managed Models</CardTitle>
