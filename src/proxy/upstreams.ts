@@ -205,9 +205,18 @@ function cloneCodexControlHeaders(
   return headers
 }
 
-function cloneCodexResponsesHeaders(request: Request, bearer: string) {
+function cloneCodexResponsesHeaders(
+  request: Request,
+  bearer: string,
+  accountId?: string | null
+) {
   const headers = cloneHeaders(request, bearer)
   headers.set("accept", "text/event-stream")
+
+  if (accountId) {
+    headers.set("chatgpt-account-id", accountId)
+  }
+
   return headers
 }
 
@@ -1609,9 +1618,10 @@ export async function forwardCodexAutoReviewResponses(
   request: Request,
   body: Record<string, unknown>
 ) {
-  const accountToken = await getActiveAccessToken()
+  const account = await getActiveAccount()
+  const accountToken = account ? await getActiveAccessToken() : null
 
-  if (!accountToken) {
+  if (!account || !accountToken) {
     return json(
       {
         error: {
@@ -1623,11 +1633,29 @@ export async function forwardCodexAutoReviewResponses(
     )
   }
 
-  const response = await fetch("https://chatgpt.com/backend-api/codex/responses", {
-    method: "POST",
-    headers: cloneCodexResponsesHeaders(request, accountToken),
-    body: JSON.stringify(normalizeCodexResponsesPayload(body)),
-  })
+  let response: Response
+  try {
+    response = await fetch("https://chatgpt.com/backend-api/codex/responses", {
+      method: "POST",
+      headers: cloneCodexResponsesHeaders(
+        request,
+        accountToken,
+        account.chatgptAccountId
+      ),
+      body: JSON.stringify(normalizeCodexResponsesPayload(body)),
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "fetch failed"
+    return json(
+      {
+        error: {
+          message: `Codex auto-review upstream request failed: ${message}`,
+          type: "upstream_fetch_failed",
+        },
+      },
+      502
+    )
+  }
 
   return new Response(response.body, {
     status: response.status,
