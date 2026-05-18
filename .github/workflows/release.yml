@@ -20,10 +20,6 @@ jobs:
             platform: darwin
             arch: arm64
             archive: tar.gz
-          - runner: macos-13
-            platform: darwin
-            arch: x64
-            archive: tar.gz
           - runner: ubuntu-latest
             platform: linux
             arch: x64
