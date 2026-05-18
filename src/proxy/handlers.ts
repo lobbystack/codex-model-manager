@@ -9,7 +9,11 @@ import {
   toOpenAIModelList,
 } from "./model-registry"
 import { toCodexModelCatalog } from "./codex-catalog"
-import { forwardChatCompletions, forwardResponses } from "./upstreams"
+import {
+  forwardChatCompletions,
+  forwardCodexControlRequest,
+  forwardResponses,
+} from "./upstreams"
 import type { CodexModelInfo, ManagedModel } from "./model-registry"
 import type { UsageTokens } from "@/server/usage/types"
 import {
@@ -591,6 +595,7 @@ export async function routeProxyRequest(
   request: Request,
   kind: "chat" | "responses"
 ) {
+  const codexControlRequest = kind === "responses" ? request.clone() : null
   const requestStartedAtMs = performance.now()
   const requestStartedAtEpochMs = Date.now()
   const body = await readJson(request)
@@ -607,6 +612,10 @@ export async function routeProxyRequest(
       },
       400
     )
+  }
+
+  if (kind === "responses" && modelId === "codex-auto-review") {
+    return forwardCodexControlRequest(codexControlRequest!, "responses")
   }
 
   const model = (await getEnabledModels()).find(
