@@ -1,0 +1,89 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }} ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14
+            platform: darwin
+            arch: arm64
+            archive: tar.gz
+          - runner: macos-13
+            platform: darwin
+            arch: x64
+            archive: tar.gz
+          - runner: ubuntu-latest
+            platform: linux
+            arch: x64
+            archive: tar.gz
+          - runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            archive: tar.gz
+          - runner: windows-latest
+            platform: win32
+            arch: x64
+            archive: zip
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run lint
+      - run: bun run build
+      - run: bun run package:release
+      - name: Archive Unix package
+        if: matrix.archive == 'tar.gz'
+        shell: bash
+        run: |
+          cd release/package
+          tar -czf "../codex-model-manager-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz" .
+          cd ..
+          shasum -a 256 "codex-model-manager-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz" > "codex-model-manager-${{ matrix.platform }}-${{ matrix.arch }}.sha256"
+      - name: Archive Windows package
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path release/package/.output, release/package/package.json, release/package/bun.lock, release/package/runtime.json -DestinationPath "release/codex-model-manager-${{ matrix.platform }}-${{ matrix.arch }}.zip" -Force
+          $hash = (Get-FileHash "release/codex-model-manager-${{ matrix.platform }}-${{ matrix.arch }}.zip" -Algorithm SHA256).Hash.ToLower()
+          "$hash  codex-model-manager-${{ matrix.platform }}-${{ matrix.arch }}.zip" | Set-Content "release/codex-model-manager-${{ matrix.platform }}-${{ matrix.arch }}.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: codex-model-manager-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            release/codex-model-manager-${{ matrix.platform }}-${{ matrix.arch }}.*
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+      - name: Build update manifest
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          python3 scripts/write-release-manifest.py "$VERSION" release-assets codex-model-manager-manifest.json
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-assets/*
+            codex-model-manager-manifest.json
