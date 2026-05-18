@@ -2,6 +2,7 @@ import { openCodeZenModelFamily } from "./model-registry"
 import type { ManagedModel } from "./model-registry"
 import {
   getActiveAccount,
+  getOllamaCloudKey as getStoredOllamaCloudKey,
   getOpenCodeZenKey as getStoredOpenCodeZenKey,
   getOpenRouterKey as getStoredOpenRouterKey,
 } from "@/server/accounts/store"
@@ -325,7 +326,9 @@ function contentItemImageUrl(item: Record<string, unknown>) {
   return null
 }
 
-function contentItemsToChatContent(content: unknown): string | Array<ChatContentPart> {
+function contentItemsToChatContent(
+  content: unknown
+): string | Array<ChatContentPart> {
   if (typeof content === "string") {
     return content
   }
@@ -465,7 +468,9 @@ function responsesInputToChatMessages(body: Record<string, unknown>) {
   return messages
 }
 
-function responsesToolsToChatTools(tools: unknown): Array<ChatTool> | undefined {
+function responsesToolsToChatTools(
+  tools: unknown
+): Array<ChatTool> | undefined {
   if (!Array.isArray(tools)) {
     return undefined
   }
@@ -654,7 +659,8 @@ function responsesOutput(
 ) {
   if (input.body.stream === false) {
     return json(
-      responseCompletedEventWithUsage(id, input.model.id, output, usage).response
+      responseCompletedEventWithUsage(id, input.model.id, output, usage)
+        .response
     )
   }
 
@@ -740,6 +746,14 @@ async function openCodeZenKey(input: UpstreamRequest) {
   )
 }
 
+async function ollamaCloudKey(input: UpstreamRequest) {
+  return (
+    (await getStoredOllamaCloudKey()) ||
+    getEnv("OLLAMA_API_KEY") ||
+    getBearerToken(input.request)
+  )
+}
+
 function missingOpenRouterKeyResponse() {
   return json(
     {
@@ -760,6 +774,19 @@ function missingOpenCodeZenKeyResponse() {
         message:
           "Add an OpenCode Zen provider key, set OPENCODE_ZEN_API_KEY, or pass a Bearer token to use OpenCode Zen models.",
         type: "missing_opencode_zen_key",
+      },
+    },
+    401
+  )
+}
+
+function missingOllamaCloudKeyResponse() {
+  return json(
+    {
+      error: {
+        message:
+          "Add an Ollama Cloud provider key, set OLLAMA_API_KEY, or pass a Bearer token to use Ollama Cloud models.",
+        type: "missing_ollama_cloud_key",
       },
     },
     401
@@ -832,6 +859,16 @@ export async function forwardChatCompletions(input: UpstreamRequest) {
       key,
       input
     )
+  }
+
+  if (input.model.provider === "ollama-cloud") {
+    const key = await ollamaCloudKey(input)
+
+    if (!key) {
+      return missingOllamaCloudKeyResponse()
+    }
+
+    return forwardJson("https://ollama.com/v1/chat/completions", key, input)
   }
 
   const key = await getOpenAIBearer()
@@ -1297,7 +1334,9 @@ function anthropicOutput(content: AnthropicMessageResponse["content"]) {
   return [messageOutputItem(outputItemId(), anthropicContentText(content))]
 }
 
-function anthropicUsageToResponseUsage(usage: AnthropicMessageResponse["usage"]) {
+function anthropicUsageToResponseUsage(
+  usage: AnthropicMessageResponse["usage"]
+) {
   if (!usage) {
     return undefined
   }
@@ -1482,7 +1521,10 @@ function geminiOutput(data: GeminiResponse) {
   return [
     messageOutputItem(
       outputItemId(),
-      parts.map((part) => part.text || "").filter(Boolean).join("\n")
+      parts
+        .map((part) => part.text || "")
+        .filter(Boolean)
+        .join("\n")
     ),
   ]
 }
@@ -1500,7 +1542,8 @@ function geminiUsageToResponseUsage(usage: GeminiResponse["usageMetadata"]) {
   return {
     input_tokens: inputTokens,
     output_tokens: outputTokens,
-    total_tokens: tokenCount(usage.totalTokenCount) || inputTokens + outputTokens,
+    total_tokens:
+      tokenCount(usage.totalTokenCount) || inputTokens + outputTokens,
     input_tokens_details: {
       cached_tokens: tokenCount(usage.cachedContentTokenCount),
     },
@@ -1566,6 +1609,21 @@ async function forwardOpenCodeZenResponses(input: UpstreamRequest) {
   )
 }
 
+async function forwardOllamaCloudResponses(input: UpstreamRequest) {
+  const key = await ollamaCloudKey(input)
+
+  if (!key) {
+    return missingOllamaCloudKeyResponse()
+  }
+
+  return forwardChatCompatibleResponses(
+    input,
+    "https://ollama.com/v1/chat/completions",
+    key,
+    "Ollama Cloud returned an empty stream."
+  )
+}
+
 export async function forwardResponses(input: UpstreamRequest) {
   if (!input.model.supportsResponses) {
     return json(
@@ -1585,6 +1643,10 @@ export async function forwardResponses(input: UpstreamRequest) {
 
   if (input.model.provider === "opencode-zen") {
     return forwardOpenCodeZenResponses(input)
+  }
+
+  if (input.model.provider === "ollama-cloud") {
+    return forwardOllamaCloudResponses(input)
   }
 
   const accountToken = await getActiveAccessToken()
@@ -1664,7 +1726,10 @@ export async function forwardCodexAutoReviewResponses(
   })
 }
 
-export async function forwardCodexControlRequest(request: Request, path: string) {
+export async function forwardCodexControlRequest(
+  request: Request,
+  path: string
+) {
   const account = await getActiveAccount()
   const token = account ? await getActiveAccessToken() : null
 
@@ -1685,9 +1750,7 @@ export async function forwardCodexControlRequest(request: Request, path: string)
   const upstreamPath = normalizedPath.startsWith("wham/")
     ? normalizedPath
     : `codex/${normalizedPath}`
-  const upstreamUrl = new URL(
-    `https://chatgpt.com/backend-api/${upstreamPath}`
-  )
+  const upstreamUrl = new URL(`https://chatgpt.com/backend-api/${upstreamPath}`)
   upstreamUrl.search = sourceUrl.search
 
   const method = request.method.toUpperCase()

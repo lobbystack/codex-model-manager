@@ -20,7 +20,7 @@ export const Route = createFileRoute("/providers/")({
 })
 
 type ProviderStatus = "Active" | "Rate limited" | "Disconnected"
-type ProviderType = "ChatGPT" | "OpenRouter" | "OpenCode Zen"
+type ProviderType = "ChatGPT" | "OpenRouter" | "OpenCode Zen" | "Ollama Cloud"
 
 interface Provider {
   id: string
@@ -40,14 +40,16 @@ type AccountResponse = {
   }>
   apiKeyProviders: Array<{
     id: string
-    type: "openrouter" | "opencode-zen"
+    type: "openrouter" | "opencode-zen" | "ollama-cloud"
     name: string
     keyPrefix: string
     status: "active"
   }>
 }
 
-function accountStatus(status: AccountResponse["accounts"][number]["status"]): ProviderStatus {
+function accountStatus(
+  status: AccountResponse["accounts"][number]["status"]
+): ProviderStatus {
   if (status === "active") {
     return "Active"
   }
@@ -57,7 +59,9 @@ function accountStatus(status: AccountResponse["accounts"][number]["status"]): P
 
 function ProvidersPage() {
   const [providers, setProviders] = useState<Array<Provider>>([])
-  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null)
+  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(
+    null
+  )
   const [isLoading, setIsLoading] = useState(true)
 
   const selectedProvider = providers.find(
@@ -81,7 +85,12 @@ function ProvidersPage() {
       name: provider.name,
       plan: provider.keyPrefix,
       status: "Active" as const,
-      type: provider.type === "opencode-zen" ? "OpenCode Zen" as const : "OpenRouter" as const,
+      type:
+        provider.type === "opencode-zen"
+          ? ("OpenCode Zen" as const)
+          : provider.type === "ollama-cloud"
+            ? ("Ollama Cloud" as const)
+            : ("OpenRouter" as const),
     }))
     const nextProviders = [...chatGptProviders, ...apiKeyProviders]
 

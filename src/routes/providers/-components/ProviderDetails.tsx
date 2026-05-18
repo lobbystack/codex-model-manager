@@ -88,7 +88,9 @@ function UsageLimitMeter({
       />
       <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
         <Clock className="size-4" />
-        <span>{formatResetLabel(window?.resetAt).replace(/^Resets/, "Reset")}</span>
+        <span>
+          {formatResetLabel(window?.resetAt).replace(/^Resets/, "Reset")}
+        </span>
       </div>
     </div>
   )
@@ -132,6 +134,7 @@ export function ChatGptUsageCard() {
 export function ProviderDetails({ provider }: ProviderDetailsProps) {
   const isChatGPT = provider.type === "ChatGPT"
   const isOpenCodeZen = provider.type === "OpenCode Zen"
+  const isOllamaCloud = provider.type === "Ollama Cloud"
 
   return (
     <div className="flex animate-in flex-col gap-6 duration-300 fade-in-50">
@@ -197,7 +200,11 @@ export function ProviderDetails({ provider }: ProviderDetailsProps) {
               </div>
               <div className="flex items-center gap-2">
                 <span className="font-mono text-sm">
-                  {isOpenCodeZen ? "zen-••••••••••••" : "sk-or-v1-••••••••••••"}
+                  {isOpenCodeZen
+                    ? "zen-••••••••••••"
+                    : isOllamaCloud
+                      ? "ollama-••••••••••••"
+                      : "sk-or-v1-••••••••••••"}
                 </span>
                 <Button
                   className="h-8 w-8 text-muted-foreground"
@@ -218,9 +225,11 @@ export function ProviderDetails({ provider }: ProviderDetailsProps) {
                 </span>
               </div>
               <span className="font-mono text-sm text-muted-foreground">
-                {isOpenCodeZen
-                  ? "https://opencode.ai/zen/v1"
-                  : "https://openrouter.ai/api/v1"}
+                {isOllamaCloud
+                  ? "https://ollama.com/v1"
+                  : isOpenCodeZen
+                    ? "https://opencode.ai/zen/v1"
+                    : "https://openrouter.ai/api/v1"}
               </span>
             </div>
           </CardContent>

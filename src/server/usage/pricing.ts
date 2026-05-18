@@ -16,9 +16,10 @@ type OpenRouterModel = {
   }
 }
 
-let openRouterPricesCache:
-  | { expiresAt: number; prices: Map<string, ModelPrice> }
-  | null = null
+let openRouterPricesCache: {
+  expiresAt: number
+  prices: Map<string, ModelPrice>
+} | null = null
 
 const OPENROUTER_PRICE_FALLBACKS: Partial<Record<string, ModelPrice>> = {
   "moonshotai/kimi-k2.6": {
@@ -30,9 +31,17 @@ const OPENROUTER_PRICE_FALLBACKS: Partial<Record<string, ModelPrice>> = {
 
 const OPENCODE_ZEN_PRICES: Partial<Record<string, ModelPrice>> = {
   "big-pickle": { inputPer1m: 0, cachedInputPer1m: 0, outputPer1m: 0 },
-  "deepseek-v4-flash-free": { inputPer1m: 0, cachedInputPer1m: 0, outputPer1m: 0 },
+  "deepseek-v4-flash-free": {
+    inputPer1m: 0,
+    cachedInputPer1m: 0,
+    outputPer1m: 0,
+  },
   "minimax-m2.5-free": { inputPer1m: 0, cachedInputPer1m: 0, outputPer1m: 0 },
-  "nemotron-3-super-free": { inputPer1m: 0, cachedInputPer1m: 0, outputPer1m: 0 },
+  "nemotron-3-super-free": {
+    inputPer1m: 0,
+    cachedInputPer1m: 0,
+    outputPer1m: 0,
+  },
   "qwen3.6-plus-free": { inputPer1m: 0, cachedInputPer1m: 0, outputPer1m: 0 },
   "minimax-m2.7": { inputPer1m: 0.3, cachedInputPer1m: 0.06, outputPer1m: 1.2 },
   "minimax-m2.5": { inputPer1m: 0.3, cachedInputPer1m: 0.06, outputPer1m: 1.2 },
@@ -46,8 +55,16 @@ const OPENCODE_ZEN_PRICES: Partial<Record<string, ModelPrice>> = {
   "claude-opus-4-6": { inputPer1m: 5, cachedInputPer1m: 0.5, outputPer1m: 25 },
   "claude-opus-4-5": { inputPer1m: 5, cachedInputPer1m: 0.5, outputPer1m: 25 },
   "claude-opus-4-1": { inputPer1m: 15, cachedInputPer1m: 1.5, outputPer1m: 75 },
-  "claude-sonnet-4-6": { inputPer1m: 3, cachedInputPer1m: 0.3, outputPer1m: 15 },
-  "claude-sonnet-4-5": { inputPer1m: 3, cachedInputPer1m: 0.3, outputPer1m: 15 },
+  "claude-sonnet-4-6": {
+    inputPer1m: 3,
+    cachedInputPer1m: 0.3,
+    outputPer1m: 15,
+  },
+  "claude-sonnet-4-5": {
+    inputPer1m: 3,
+    cachedInputPer1m: 0.3,
+    outputPer1m: 15,
+  },
   "claude-sonnet-4": { inputPer1m: 3, cachedInputPer1m: 0.3, outputPer1m: 15 },
   "claude-haiku-4-5": { inputPer1m: 1, cachedInputPer1m: 0.1, outputPer1m: 5 },
   "gemini-3.1-pro": { inputPer1m: 2, cachedInputPer1m: 0.2, outputPer1m: 12 },
@@ -56,18 +73,54 @@ const OPENCODE_ZEN_PRICES: Partial<Record<string, ModelPrice>> = {
   "gpt-5.5-pro": { inputPer1m: 30, cachedInputPer1m: 30, outputPer1m: 180 },
   "gpt-5.4": { inputPer1m: 2.5, cachedInputPer1m: 0.25, outputPer1m: 15 },
   "gpt-5.4-pro": { inputPer1m: 30, cachedInputPer1m: 30, outputPer1m: 180 },
-  "gpt-5.4-mini": { inputPer1m: 0.75, cachedInputPer1m: 0.075, outputPer1m: 4.5 },
-  "gpt-5.4-nano": { inputPer1m: 0.2, cachedInputPer1m: 0.02, outputPer1m: 1.25 },
-  "gpt-5.3-codex-spark": { inputPer1m: 1.75, cachedInputPer1m: 0.175, outputPer1m: 14 },
-  "gpt-5.3-codex": { inputPer1m: 1.75, cachedInputPer1m: 0.175, outputPer1m: 14 },
+  "gpt-5.4-mini": {
+    inputPer1m: 0.75,
+    cachedInputPer1m: 0.075,
+    outputPer1m: 4.5,
+  },
+  "gpt-5.4-nano": {
+    inputPer1m: 0.2,
+    cachedInputPer1m: 0.02,
+    outputPer1m: 1.25,
+  },
+  "gpt-5.3-codex-spark": {
+    inputPer1m: 1.75,
+    cachedInputPer1m: 0.175,
+    outputPer1m: 14,
+  },
+  "gpt-5.3-codex": {
+    inputPer1m: 1.75,
+    cachedInputPer1m: 0.175,
+    outputPer1m: 14,
+  },
   "gpt-5.2": { inputPer1m: 1.75, cachedInputPer1m: 0.175, outputPer1m: 14 },
-  "gpt-5.2-codex": { inputPer1m: 1.75, cachedInputPer1m: 0.175, outputPer1m: 14 },
+  "gpt-5.2-codex": {
+    inputPer1m: 1.75,
+    cachedInputPer1m: 0.175,
+    outputPer1m: 14,
+  },
   "gpt-5.1": { inputPer1m: 1.07, cachedInputPer1m: 0.107, outputPer1m: 8.5 },
-  "gpt-5.1-codex": { inputPer1m: 1.07, cachedInputPer1m: 0.107, outputPer1m: 8.5 },
-  "gpt-5.1-codex-max": { inputPer1m: 1.25, cachedInputPer1m: 0.125, outputPer1m: 10 },
-  "gpt-5.1-codex-mini": { inputPer1m: 0.25, cachedInputPer1m: 0.025, outputPer1m: 2 },
+  "gpt-5.1-codex": {
+    inputPer1m: 1.07,
+    cachedInputPer1m: 0.107,
+    outputPer1m: 8.5,
+  },
+  "gpt-5.1-codex-max": {
+    inputPer1m: 1.25,
+    cachedInputPer1m: 0.125,
+    outputPer1m: 10,
+  },
+  "gpt-5.1-codex-mini": {
+    inputPer1m: 0.25,
+    cachedInputPer1m: 0.025,
+    outputPer1m: 2,
+  },
   "gpt-5": { inputPer1m: 1.07, cachedInputPer1m: 0.107, outputPer1m: 8.5 },
-  "gpt-5-codex": { inputPer1m: 1.07, cachedInputPer1m: 0.107, outputPer1m: 8.5 },
+  "gpt-5-codex": {
+    inputPer1m: 1.07,
+    cachedInputPer1m: 0.107,
+    outputPer1m: 8.5,
+  },
   "gpt-5-nano": { inputPer1m: 0.05, cachedInputPer1m: 0.005, outputPer1m: 0.4 },
 }
 
@@ -246,16 +299,27 @@ export async function calculateEstimatedCostUsd(
     return price ? calculateTokenCost(tokens, price) : 0
   }
 
+  if (provider === "ollama-cloud") {
+    return 0
+  }
+
   const price = resolveChatGptPrice(model)
   return price ? calculateTokenCost(tokens, price) : 0
 }
 
-export function calculateRealCostUsd(provider: ProviderId, estimatedCostUsd: number) {
+export function calculateRealCostUsd(
+  provider: ProviderId,
+  estimatedCostUsd: number
+) {
   if (provider === "openrouter") {
     return estimatedCostUsd
   }
 
   if (provider === "opencode-zen") {
+    return estimatedCostUsd
+  }
+
+  if (provider === "ollama-cloud") {
     return estimatedCostUsd
   }
 

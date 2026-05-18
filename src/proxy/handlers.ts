@@ -3,6 +3,7 @@ import { gunzipSync, inflateSync, zstdDecompressSync } from "node:zlib"
 import {
   codexModelInfoToManagedModel,
   managedModels,
+  ollamaCloudSettingToManagedModel,
   openCodeZenSettingToManagedModel,
   openRouterSettingToManagedModel,
   publicModelId,
@@ -19,6 +20,7 @@ import type { UsageTokens } from "@/server/usage/types"
 import {
   getActiveAccount,
   listChatGptModelSettings,
+  listOllamaCloudModelSettings,
   listOpenCodeZenModelSettings,
   listOpenRouterModelSettings,
 } from "@/server/accounts/store"
@@ -81,7 +83,10 @@ export async function fetchChatGptCodexModels(): Promise<Array<ManagedModel>> {
 }
 
 async function fetchOpenRouterModelCapabilities(): Promise<
-  Map<string, { supportedParameters: Array<string>; inputModalities: Array<string> }>
+  Map<
+    string,
+    { supportedParameters: Array<string>; inputModalities: Array<string> }
+  >
 > {
   try {
     const response = await fetch("https://openrouter.ai/api/v1/models", {
@@ -172,7 +177,10 @@ function getRequestedModel(body: Record<string, unknown> | null) {
   return typeof body?.model === "string" ? body.model : null
 }
 
-function getServiceTier(body: Record<string, unknown> | null, payload: unknown) {
+function getServiceTier(
+  body: Record<string, unknown> | null,
+  payload: unknown
+) {
   const data = getRecord(payload)
 
   return (
@@ -479,6 +487,7 @@ function hiddenChatGptModelOverride(model: ManagedModel): ManagedModel {
 async function resolveConfiguredModels() {
   const settings = await listOpenRouterModelSettings()
   const openCodeZenSettings = await listOpenCodeZenModelSettings()
+  const ollamaCloudSettings = await listOllamaCloudModelSettings()
   const chatGptSettings = await listChatGptModelSettings()
   const liveOpenAIModels = await fetchChatGptCodexModels()
   const chatGptSettingsById = new Map(
@@ -530,19 +539,23 @@ async function resolveConfiguredModels() {
       return openRouterSettingToManagedModel({
         ...model,
         supportedParameters,
-        inputModalities:
-          capability?.inputModalities || model.inputModalities || ["text"],
+        inputModalities: capability?.inputModalities ||
+          model.inputModalities || ["text"],
       })
     })
   const configuredOpenCodeZenModels = openCodeZenSettings
     .filter((model) => model.enabled)
     .map(openCodeZenSettingToManagedModel)
+  const configuredOllamaCloudModels = ollamaCloudSettings
+    .filter((model) => model.enabled)
+    .map(ollamaCloudSettingToManagedModel)
 
   return {
     enabledModels: [
       ...enabledLiveOpenAIModels,
       ...staticModels,
       ...configuredOpenRouterModels,
+      ...configuredOllamaCloudModels,
       ...configuredOpenCodeZenModels,
     ],
     catalogModels: [
@@ -550,6 +563,7 @@ async function resolveConfiguredModels() {
       ...hiddenLiveOpenAIModels,
       ...staticModels,
       ...configuredOpenRouterModels,
+      ...configuredOllamaCloudModels,
       ...configuredOpenCodeZenModels,
     ],
   }
