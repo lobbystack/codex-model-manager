@@ -57,7 +57,7 @@ at one localhost proxy.
 | Feature | What it gives you |
 | --- | --- |
 | Local browser dashboard | Manage providers, models, proxy status, and usage from `localhost:1455`. |
-| Provider management | Connect ChatGPT/Codex accounts, OpenRouter API keys, and OpenCode Zen API keys. |
+| Provider management | Connect ChatGPT/Codex accounts, OpenRouter API keys, OpenCode Zen API keys, and Ollama Cloud API keys. |
 | Codex config installer | Adds the local proxy provider to `~/.codex/config.toml` with a backup. |
 | OpenAI-compatible proxy | Exposes `/v1/models`, `/v1/responses`, and `/v1/chat/completions`. |
 | Codex backend proxy | Supports `/backend-api/codex` routes used by Codex-style clients. |
@@ -101,6 +101,7 @@ http://localhost:1455
 | ChatGPT / Codex account | Browser OAuth or device sign-in, using the registered localhost callback. |
 | OpenRouter | Save an API key and expose selected OpenRouter models through the local proxy. |
 | OpenCode Zen | Save an API key and route OpenCode Zen models through the same dashboard. |
+| Ollama Cloud | Save an API key and route Ollama Cloud models through the same dashboard. |
 | OpenAI-compatible clients | Point clients at the local `/v1/*` proxy endpoints. |
 
 Environment variables are still supported for server-side fallback:
@@ -108,6 +109,7 @@ Environment variables are still supported for server-side fallback:
 ```bash
 OPENROUTER_API_KEY=...
 OPENCODE_ZEN_API_KEY=...
+OLLAMA_API_KEY=...
 CMM_OPENAI_KEYS=...
 OPENAI_API_KEY=...
 ```

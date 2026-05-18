@@ -1,4 +1,8 @@
-export type ProviderId = "openai-pool" | "openrouter" | "opencode-zen"
+export type ProviderId =
+  | "openai-pool"
+  | "openrouter"
+  | "opencode-zen"
+  | "ollama-cloud"
 
 export type ManagedModel = {
   id: string
@@ -17,7 +21,12 @@ export type ManagedModel = {
   codexModelInfo?: CodexModelInfo
 }
 
-export type ReasoningEffortLevel = "minimal" | "low" | "medium" | "high" | "xhigh"
+export type ReasoningEffortLevel =
+  | "minimal"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh"
 
 export type ReasoningCapability =
   | { kind: "none" }
@@ -78,9 +87,25 @@ export type OpenRouterModelSetting = {
   inputModalities?: Array<string>
 }
 
-export type OpenCodeZenModelFamily = "responses" | "chat" | "messages" | "gemini"
+export type OpenCodeZenModelFamily =
+  | "responses"
+  | "chat"
+  | "messages"
+  | "gemini"
 
 export type OpenCodeZenModelSetting = {
+  id: string
+  displayName: string
+  upstreamModel: string
+  enabled: boolean
+  supportsReasoning?: boolean
+  supportedParameters?: Array<string>
+  contextWindow: number
+  outputLimit: number
+  inputModalities?: Array<string>
+}
+
+export type OllamaCloudModelSetting = {
   id: string
   displayName: string
   upstreamModel: string
@@ -150,7 +175,9 @@ export function inferOpenRouterReasoningCapability(
   return { kind: "none" }
 }
 
-export function openCodeZenModelFamily(modelId: string): OpenCodeZenModelFamily {
+export function openCodeZenModelFamily(
+  modelId: string
+): OpenCodeZenModelFamily {
   const upstreamModel = modelId.replace(/^opencode\//, "")
 
   if (upstreamModel.startsWith("claude-")) {
@@ -173,10 +200,7 @@ export function inferOpenCodeZenReasoningCapability(
 ): ReasoningCapability {
   const upstreamModel = modelId.replace(/^opencode\//, "")
 
-  if (
-    upstreamModel.startsWith("gpt-") ||
-    upstreamModel.startsWith("gemini-")
-  ) {
+  if (upstreamModel.startsWith("gpt-") || upstreamModel.startsWith("gemini-")) {
     return { kind: "effort", levels: DEFAULT_EFFORT_LEVELS }
   }
 
@@ -324,7 +348,29 @@ export function openCodeZenSettingToManagedModel(
   }
 }
 
-export function codexModelInfoToManagedModel(model: CodexModelInfo): ManagedModel {
+export function ollamaCloudSettingToManagedModel(
+  model: OllamaCloudModelSetting
+): ManagedModel {
+  return {
+    id: model.id,
+    displayName: model.displayName,
+    provider: "ollama-cloud",
+    upstreamModel: model.upstreamModel,
+    enabled: model.enabled,
+    supportsResponses: true,
+    supportsChatCompletions: true,
+    supportsReasoning: model.supportsReasoning ?? false,
+    supportedParameters: model.supportedParameters || [],
+    reasoningCapability: { kind: "none" },
+    contextWindow: model.contextWindow,
+    outputLimit: model.outputLimit,
+    inputModalities: model.inputModalities || TEXT_MODALITIES,
+  }
+}
+
+export function codexModelInfoToManagedModel(
+  model: CodexModelInfo
+): ManagedModel {
   const supportedReasoningLevels = model.supported_reasoning_levels || []
   const contextWindow = model.context_window || model.max_context_window || 0
 

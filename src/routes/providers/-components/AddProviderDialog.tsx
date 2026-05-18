@@ -1,4 +1,13 @@
-import { Box, Check, CircleAlert, Copy, ExternalLink, Key, Loader2, Plus } from "lucide-react"
+import {
+  Box,
+  Check,
+  CircleAlert,
+  Copy,
+  ExternalLink,
+  Key,
+  Loader2,
+  Plus,
+} from "lucide-react"
 import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -14,7 +23,12 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-type Step = "choose" | "chatgpt" | "openrouter" | "opencode-zen"
+type Step =
+  | "choose"
+  | "chatgpt"
+  | "openrouter"
+  | "opencode-zen"
+  | "ollama-cloud"
 type OAuthStage = "intro" | "browser" | "device" | "success" | "error"
 
 type OAuthState = {
@@ -57,7 +71,9 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   }
 
   if (!response.ok) {
-    throw new Error(data.error?.message || data.errorMessage || "Request failed")
+    throw new Error(
+      data.error?.message || data.errorMessage || "Request failed"
+    )
   }
 
   return data
@@ -89,8 +105,11 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
   const [openRouterError, setOpenRouterError] = useState<string | null>(null)
   const [openCodeZenKey, setOpenCodeZenKey] = useState("")
   const [openCodeZenError, setOpenCodeZenError] = useState<string | null>(null)
+  const [ollamaCloudKey, setOllamaCloudKey] = useState("")
+  const [ollamaCloudError, setOllamaCloudError] = useState<string | null>(null)
   const [isSavingOpenRouter, setIsSavingOpenRouter] = useState(false)
   const [isSavingOpenCodeZen, setIsSavingOpenCodeZen] = useState(false)
+  const [isSavingOllamaCloud, setIsSavingOllamaCloud] = useState(false)
   const [manualCallbackUrl, setManualCallbackUrl] = useState("")
   const [oauthState, setOAuthState] = useState<OAuthState>(initialOAuthState)
   const isRegisteredOAuthPort = currentPort === "1455"
@@ -105,8 +124,11 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
         setOpenRouterError(null)
         setOpenCodeZenKey("")
         setOpenCodeZenError(null)
+        setOllamaCloudKey("")
+        setOllamaCloudError(null)
         setIsSavingOpenRouter(false)
         setIsSavingOpenCodeZen(false)
+        setIsSavingOllamaCloud(false)
         setManualCallbackUrl("")
         setOAuthState(initialOAuthState)
       }, 300)
@@ -143,7 +165,11 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
       return
     }
 
-    setOAuthState((current) => ({ ...current, stage: "intro", errorMessage: null }))
+    setOAuthState((current) => ({
+      ...current,
+      stage: "intro",
+      errorMessage: null,
+    }))
 
     try {
       const response = await postJson<{
@@ -227,7 +253,9 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
       handleOpenChange(false)
     } catch (error) {
       setOpenRouterError(
-        error instanceof Error ? error.message : "Failed to save OpenRouter key."
+        error instanceof Error
+          ? error.message
+          : "Failed to save OpenRouter key."
       )
     } finally {
       setIsSavingOpenRouter(false)
@@ -250,6 +278,25 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
       )
     } finally {
       setIsSavingOpenCodeZen(false)
+    }
+  }
+
+  async function saveOllamaCloudKey() {
+    setOllamaCloudError(null)
+    setIsSavingOllamaCloud(true)
+
+    try {
+      await postJson("/api/providers/ollama-cloud", { apiKey: ollamaCloudKey })
+      onConnected()
+      handleOpenChange(false)
+    } catch (error) {
+      setOllamaCloudError(
+        error instanceof Error
+          ? error.message
+          : "Failed to save Ollama Cloud key."
+      )
+    } finally {
+      setIsSavingOllamaCloud(false)
     }
   }
 
@@ -308,6 +355,7 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
             {step === "chatgpt" ? "Sign in with ChatGPT" : null}
             {step === "openrouter" ? "Add OpenRouter API Key" : null}
             {step === "opencode-zen" ? "Add OpenCode Zen API Key" : null}
+            {step === "ollama-cloud" ? "Add Ollama Cloud API Key" : null}
           </DialogTitle>
           <DialogDescription>
             {step === "choose" ? "Choose a provider type to connect." : null}
@@ -319,6 +367,9 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
               : null}
             {step === "opencode-zen"
               ? "Enter your OpenCode Zen API key to connect the provider."
+              : null}
+            {step === "ollama-cloud"
+              ? "Enter your Ollama Cloud API key to connect the provider."
               : null}
           </DialogDescription>
         </DialogHeader>
@@ -376,6 +427,24 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
                 </span>
               </div>
             </button>
+
+            <button
+              className="flex items-start gap-4 rounded-lg border p-4 text-left transition-colors hover:bg-accent focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none"
+              onClick={() => setStep("ollama-cloud")}
+              type="button"
+            >
+              <div className="flex size-10 items-center justify-center rounded-full bg-muted">
+                <Key className="size-5 text-foreground" />
+              </div>
+              <div className="grid gap-1">
+                <span className="text-sm font-semibold">
+                  Ollama Cloud API Key
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  Connect using your Ollama Cloud API key.
+                </span>
+              </div>
+            </button>
           </div>
         ) : null}
 
@@ -426,14 +495,23 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
                   <p className="mb-1 text-xs font-medium text-muted-foreground">
                     Authorization URL
                   </p>
-                  <p className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-xs">
+                  <p className="min-w-0 overflow-hidden font-mono text-xs text-ellipsis whitespace-nowrap">
                     {oauthState.authorizationUrl}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {oauthState.authorizationUrl ? (
                       <>
                         <CopyButton text={oauthState.authorizationUrl} />
-                        <Button render={<a href={oauthState.authorizationUrl} target="_blank" rel="noreferrer" />} size="sm">
+                        <Button
+                          render={
+                            <a
+                              href={oauthState.authorizationUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                            />
+                          }
+                          size="sm"
+                        >
                           <ExternalLink className="size-3" />
                           Open
                         </Button>
@@ -447,7 +525,9 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
                     <Input
                       className="min-w-0"
                       id="manualCallback"
-                      onChange={(event) => setManualCallbackUrl(event.target.value)}
+                      onChange={(event) =>
+                        setManualCallbackUrl(event.target.value)
+                      }
                       placeholder="http://localhost:1455/auth/callback?code=..."
                       value={manualCallbackUrl}
                     />
@@ -483,7 +563,15 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
                   </div>
                 ) : null}
                 {oauthState.verificationUrl ? (
-                  <Button render={<a href={oauthState.verificationUrl} target="_blank" rel="noreferrer" />}>
+                  <Button
+                    render={
+                      <a
+                        href={oauthState.verificationUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      />
+                    }
+                  >
                     <ExternalLink className="size-4" />
                     Open verification page
                   </Button>
@@ -508,7 +596,9 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
             {oauthState.stage === "error" ? (
               <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
                 <CircleAlert className="mt-0.5 size-4" />
-                <span>{oauthState.errorMessage || "Authorization failed."}</span>
+                <span>
+                  {oauthState.errorMessage || "Authorization failed."}
+                </span>
               </div>
             ) : null}
           </div>
@@ -556,6 +646,27 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
           </div>
         ) : null}
 
+        {step === "ollama-cloud" ? (
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="ollamaCloudApiKey">API Key</Label>
+              <Input
+                autoComplete="off"
+                id="ollamaCloudApiKey"
+                onChange={(event) => setOllamaCloudKey(event.target.value)}
+                placeholder="ollama_..."
+                type="password"
+                value={ollamaCloudKey}
+              />
+            </div>
+            {ollamaCloudError ? (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                {ollamaCloudError}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
         <DialogFooter className="gap-2 sm:justify-end sm:gap-0">
           {step !== "choose" ? (
             <Button
@@ -594,6 +705,14 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
               onClick={() => void saveOpenCodeZenKey()}
             >
               {isSavingOpenCodeZen ? "Saving..." : "Save API Key"}
+            </Button>
+          ) : null}
+          {step === "ollama-cloud" ? (
+            <Button
+              disabled={!ollamaCloudKey.trim() || isSavingOllamaCloud}
+              onClick={() => void saveOllamaCloudKey()}
+            >
+              {isSavingOllamaCloud ? "Saving..." : "Save API Key"}
             </Button>
           ) : null}
         </DialogFooter>

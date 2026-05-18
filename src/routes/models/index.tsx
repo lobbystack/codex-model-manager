@@ -18,7 +18,7 @@ export const Route = createFileRoute("/models/")({
   component: ModelsPage,
 })
 
-type ProviderTab = "chatgpt" | "openrouter" | "opencode-zen"
+type ProviderTab = "chatgpt" | "openrouter" | "opencode-zen" | "ollama-cloud"
 
 type ModelRow = {
   id: string
@@ -59,6 +59,7 @@ const providerIcons: Record<string, ElementType | undefined> = {
   google: Zap,
   moonshot: Activity,
   openai: Triangle,
+  ollama: Triangle,
   opencode: Triangle,
   qwen: Activity,
 }
@@ -78,7 +79,15 @@ const modelAesthetics: Record<
 const providerModelCache: Partial<Record<ProviderTab, Array<ModelRow>>> = {}
 
 function iconForModel(id: string) {
-  if (!id.startsWith("openrouter/") && !id.startsWith("opencode/")) {
+  if (
+    !id.startsWith("openrouter/") &&
+    !id.startsWith("opencode/") &&
+    !id.startsWith("ollama/")
+  ) {
+    return Triangle
+  }
+
+  if (id.startsWith("ollama/")) {
     return Triangle
   }
 
@@ -137,6 +146,7 @@ function ModelsPage() {
     { id: "chatgpt", label: "ChatGPT" },
     { id: "openrouter", label: "OpenRouter" },
     { id: "opencode-zen", label: "OpenCode Zen" },
+    { id: "ollama-cloud", label: "Ollama Cloud" },
   ] as const
   const activeTabLabel =
     tabs.find((tab) => tab.id === activeTab)?.label || "provider"
@@ -153,7 +163,9 @@ function ModelsPage() {
         model.id.toLowerCase().includes(searchQuery.toLowerCase())
     )
     .sort((a, b) => {
-      return Number(isEnabled(b.id, b.enabled)) - Number(isEnabled(a.id, a.enabled))
+      return (
+        Number(isEnabled(b.id, b.enabled)) - Number(isEnabled(a.id, a.enabled))
+      )
     })
 
   useEffect(() => {
@@ -239,9 +251,10 @@ function ModelsPage() {
           return nextCandidate
         })
       )
-      providerModelCache[model.provider] = providerModelCache[model.provider]?.map(
-        (candidate) =>
-          candidate.id === model.id ? { ...candidate, enabled } : candidate
+      providerModelCache[model.provider] = providerModelCache[
+        model.provider
+      ]?.map((candidate) =>
+        candidate.id === model.id ? { ...candidate, enabled } : candidate
       )
     } catch (saveError) {
       setEnabledStates((prev) => ({ ...prev, [model.id]: model.enabled }))

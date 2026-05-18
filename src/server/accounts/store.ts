@@ -8,11 +8,13 @@ import type {
   PublicAccount,
   PublicApiKeyProvider,
   PublicChatGptModel,
+  PublicOllamaCloudModel,
   PublicOpenCodeZenModel,
   PublicOpenRouterModel,
   StoredAccount,
   StoredApiKeyProvider,
   StoredChatGptModel,
+  StoredOllamaCloudModel,
   StoredOpenCodeZenModel,
   StoredOpenRouterModel,
 } from "./types"
@@ -22,6 +24,7 @@ type StoreFile = {
   apiKeyProviders: Array<StoredApiKeyProvider>
   openRouterModels: Array<StoredOpenRouterModel>
   openCodeZenModels: Array<StoredOpenCodeZenModel>
+  ollamaCloudModels: Array<StoredOllamaCloudModel>
   chatGptModels: Array<StoredChatGptModel>
 }
 
@@ -98,6 +101,9 @@ async function readStore(): Promise<StoreFile> {
       openCodeZenModels: Array.isArray(parsed.openCodeZenModels)
         ? parsed.openCodeZenModels
         : [],
+      ollamaCloudModels: Array.isArray(parsed.ollamaCloudModels)
+        ? parsed.ollamaCloudModels
+        : [],
       chatGptModels: Array.isArray(parsed.chatGptModels)
         ? parsed.chatGptModels
         : [],
@@ -108,6 +114,7 @@ async function readStore(): Promise<StoreFile> {
       apiKeyProviders: [],
       openRouterModels: [],
       openCodeZenModels: [],
+      ollamaCloudModels: [],
       chatGptModels: [],
     }
   }
@@ -231,6 +238,13 @@ export async function listOpenCodeZenModelSettings(): Promise<
   return store.openCodeZenModels
 }
 
+export async function listOllamaCloudModelSettings(): Promise<
+  Array<PublicOllamaCloudModel>
+> {
+  const store = await readStore()
+  return store.ollamaCloudModels
+}
+
 export async function listChatGptModelSettings(): Promise<
   Array<PublicChatGptModel>
 > {
@@ -304,6 +318,31 @@ export async function upsertOpenCodeZenModelSetting(
       store.openCodeZenModels[existing] = nextModel
     } else {
       store.openCodeZenModels.push(nextModel)
+    }
+
+    await writeStore(store)
+  })
+
+  await writeQueue
+  return nextModel
+}
+
+export async function upsertOllamaCloudModelSetting(
+  model: Omit<StoredOllamaCloudModel, "updatedAt">
+): Promise<PublicOllamaCloudModel> {
+  const now = new Date().toISOString()
+  const nextModel = { ...model, updatedAt: now }
+
+  writeQueue = writeQueue.then(async () => {
+    const store = await readStore()
+    const existing = store.ollamaCloudModels.findIndex(
+      (candidate) => candidate.id === nextModel.id
+    )
+
+    if (existing >= 0) {
+      store.ollamaCloudModels[existing] = nextModel
+    } else {
+      store.ollamaCloudModels.push(nextModel)
     }
 
     await writeStore(store)
@@ -397,6 +436,41 @@ export async function getOpenCodeZenKey() {
   const store = await readStore()
   const provider = store.apiKeyProviders.find(
     (candidate) => candidate.id === "opencode-zen"
+  )
+
+  if (!provider) {
+    return null
+  }
+
+  return decryptToken(provider.keyEncrypted)
+}
+
+export async function upsertOllamaCloudKey(key: string) {
+  const trimmed = key.trim()
+
+  if (!trimmed) {
+    throw new Error("Ollama Cloud API key is required")
+  }
+
+  const now = new Date().toISOString()
+  const provider: StoredApiKeyProvider = {
+    id: "ollama-cloud",
+    type: "ollama-cloud",
+    name: "Ollama Cloud",
+    keyEncrypted: await encryptToken(trimmed),
+    keyPrefix: keyPrefix(trimmed),
+    createdAt: now,
+    updatedAt: now,
+    status: "active",
+  }
+
+  return upsertApiKeyProvider(provider)
+}
+
+export async function getOllamaCloudKey() {
+  const store = await readStore()
+  const provider = store.apiKeyProviders.find(
+    (candidate) => candidate.id === "ollama-cloud"
   )
 
   if (!provider) {
