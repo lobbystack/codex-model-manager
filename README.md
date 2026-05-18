@@ -31,39 +31,11 @@ parts visible.
 
 ## Preview
 
-> Screenshot coming soon: `docs/images/codex-model-manager-overview.png`
+![Codex Model Manager overview](docs/images/codex-model-manager-overview.png)
 
 The app is intentionally quiet: provider status, model routing, proxy health,
 usage, and install/update controls are visible without turning the dashboard into
 a marketing page.
-
-## Why Use It?
-
-Codex and OpenCode are most useful when model routing is boring. In practice,
-local setups can drift:
-
-- Provider keys live in different shells, config files, and dashboards.
-- Codex model providers require TOML edits that are easy to forget or mistype.
-- Model IDs differ between ChatGPT, OpenRouter, OpenCode, and OpenAI-compatible
-  APIs.
-- Usage and estimated spend are hard to inspect after requests leave your tool.
-
-Codex Model Manager keeps those concerns in one local app. Connect providers,
-choose the models you want exposed, install the Codex config, and point clients
-at one localhost proxy.
-
-## Features
-
-| Feature | What it gives you |
-| --- | --- |
-| Local browser dashboard | Manage providers, models, proxy status, and usage from `localhost:1455`. |
-| Provider management | Connect ChatGPT/Codex accounts, OpenRouter API keys, OpenCode Zen API keys, and Ollama Cloud API keys. |
-| Codex config installer | Adds the local proxy provider to `~/.codex/config.toml` with a backup. |
-| OpenAI-compatible proxy | Exposes `/v1/models`, `/v1/responses`, and `/v1/chat/completions`. |
-| Codex backend proxy | Supports `/backend-api/codex` routes used by Codex-style clients. |
-| Usage and cost visibility | Tracks requests, tokens, estimated API cost, real user cost, and errors. |
-| Local-first storage | Stores account/provider data under `~/.codex-model-manager` by default. |
-| Prompted updates | Release builds check GitHub Releases and ask before updating. |
 
 ## Quick Start
 
@@ -93,6 +65,34 @@ After install, open:
 ```text
 http://localhost:1455
 ```
+
+## Why Use It?
+
+Codex and OpenCode are most useful when model routing is boring. In practice,
+local setups can drift:
+
+- Provider keys live in different shells, config files, and dashboards.
+- Codex model providers require TOML edits that are easy to forget or mistype.
+- Model IDs differ between ChatGPT, OpenRouter, OpenCode, and OpenAI-compatible
+  APIs.
+- Usage and estimated spend are hard to inspect after requests leave your tool.
+
+Codex Model Manager keeps those concerns in one local app. Connect providers,
+choose the models you want exposed, install the Codex config, and point clients
+at one localhost proxy.
+
+## Features
+
+| Feature | What it gives you |
+| --- | --- |
+| Local browser dashboard | Manage providers, models, proxy status, and usage from `localhost:1455`. |
+| Provider management | Connect ChatGPT/Codex accounts, OpenRouter API keys, OpenCode Zen API keys, and Ollama Cloud API keys. |
+| Codex config installer | Adds the local proxy provider to `~/.codex/config.toml` with a backup. |
+| OpenAI-compatible proxy | Exposes `/v1/models`, `/v1/responses`, and `/v1/chat/completions`. |
+| Codex backend proxy | Supports `/backend-api/codex` routes used by Codex-style clients. |
+| Usage and cost visibility | Tracks requests, tokens, estimated API cost, real user cost, and errors. |
+| Local-first storage | Stores account/provider data under `~/.codex-model-manager` by default. |
+| Prompted updates | Release builds check GitHub Releases and ask before updating. |
 
 ## Supported Providers
 
