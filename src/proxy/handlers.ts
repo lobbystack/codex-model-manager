@@ -48,22 +48,27 @@ export function proxyJson(data: unknown, status = 200) {
 
 export async function fetchChatGptCodexModels(): Promise<Array<ManagedModel>> {
   const account = await getActiveAccount()
-  const token = account ? await getActiveAccessToken() : null
 
-  if (!account || !token) {
+  if (!account) {
     return []
   }
 
-  const headers = new Headers({
-    accept: "application/json",
-    authorization: `Bearer ${token}`,
-  })
-
-  if (account.chatgptAccountId) {
-    headers.set("chatgpt-account-id", account.chatgptAccountId)
-  }
-
   try {
+    const token = await getActiveAccessToken()
+
+    if (!token) {
+      return []
+    }
+
+    const headers = new Headers({
+      accept: "application/json",
+      authorization: `Bearer ${token}`,
+    })
+
+    if (account.chatgptAccountId) {
+      headers.set("chatgpt-account-id", account.chatgptAccountId)
+    }
+
     const response = await fetch(
       "https://chatgpt.com/backend-api/codex/models?client_version=0.0.0",
       { headers }
@@ -371,11 +376,13 @@ async function recordUsage({
 }) {
   const tokens = withEstimatedTokens(extractUsageTokens(payload), body, payload)
   const upstreamCostUsd = extractUpstreamCostUsd(payload)
+  const serviceTier = getServiceTier(body, payload)
   const estimatedCostUsd = await calculateEstimatedCostUsd(
     model.provider,
     model.upstreamModel,
     tokens,
-    upstreamCostUsd
+    upstreamCostUsd,
+    serviceTier
   )
   const { code, message } = extractError(payload, response.status)
   const status = response.status >= 400 ? "error" : "success"
@@ -391,7 +398,7 @@ async function recordUsage({
     statusCode: response.status,
     errorCode: status === "error" ? code : null,
     errorMessage: status === "error" ? message : null,
-    serviceTier: getServiceTier(body, payload),
+    serviceTier,
     estimatedCostUsd,
     realCostUsd: calculateRealCostUsd(model.provider, estimatedCostUsd),
     latencyMs: Math.max(0, Math.round(performance.now() - requestStartedAtMs)),

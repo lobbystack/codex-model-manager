@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
 
+import { calculateRegistryCostUsd } from "./pricing"
 import type { UsageLogEntry, UsageSummary } from "./types"
 
 type StoreFile = {
@@ -87,7 +88,10 @@ function isSameLocalDay(a: Date, b: Date) {
   )
 }
 
-function subscriptionChargeForRange(range: UsageSummary["range"], start: Date | null) {
+function subscriptionChargeForRange(
+  range: UsageSummary["range"],
+  start: Date | null
+) {
   const amount = subscriptionAmountUsd()
 
   if (amount === 0) {
@@ -102,7 +106,9 @@ function subscriptionChargeForRange(range: UsageSummary["range"], start: Date | 
       return isSameLocalDay(configuredDate, now) ? amount : 0
     }
 
-    return (!start || configuredDate >= start) && configuredDate <= now ? amount : 0
+    return (!start || configuredDate >= start) && configuredDate <= now
+      ? amount
+      : 0
   }
 
   const renewalDay = subscriptionRenewalDay()
@@ -119,7 +125,11 @@ function subscriptionChargeForRange(range: UsageSummary["range"], start: Date | 
     return amount
   }
 
-  for (let cursor = new Date(start); cursor <= now; cursor.setDate(cursor.getDate() + 1)) {
+  for (
+    let cursor = new Date(start);
+    cursor <= now;
+    cursor.setDate(cursor.getDate() + 1)
+  ) {
     if (cursor.getDate() === renewalDay) {
       return amount
     }
@@ -138,6 +148,20 @@ export async function addUsageLog(entry: UsageLogEntry) {
   await writeQueue
 }
 
+function estimatedCostForSummary(log: UsageLogEntry) {
+  if (log.provider !== "openai-pool" && log.provider !== "opencode-zen") {
+    return log.estimatedCostUsd
+  }
+
+  return (
+    calculateRegistryCostUsd(
+      log.upstreamModel || log.model,
+      log,
+      log.serviceTier
+    ) ?? log.estimatedCostUsd
+  )
+}
+
 export async function getUsageSummary(
   range: UsageSummary["range"] = "today"
 ): Promise<UsageSummary> {
@@ -154,6 +178,7 @@ export async function getUsageSummary(
 
   for (const log of logs) {
     const logTokens = log.inputTokens + log.outputTokens
+    const logEstimatedCostUsd = estimatedCostForSummary(log)
     const key = `${log.provider}:${log.model}`
     const current = byModel.get(key) || {
       provider: log.provider,
@@ -166,13 +191,13 @@ export async function getUsageSummary(
     }
 
     tokens += logTokens
-    estimatedCostUsd += log.estimatedCostUsd
+    estimatedCostUsd += logEstimatedCostUsd
     realCostUsd += log.realCostUsd
     errors += log.status === "error" ? 1 : 0
 
     current.requests += 1
     current.tokens += logTokens
-    current.estimatedCostUsd += log.estimatedCostUsd
+    current.estimatedCostUsd += logEstimatedCostUsd
     current.realCostUsd += log.realCostUsd
     current.errors += log.status === "error" ? 1 : 0
     byModel.set(key, current)

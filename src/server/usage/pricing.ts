@@ -5,6 +5,17 @@ type ModelPrice = {
   inputPer1m: number
   outputPer1m: number
   cachedInputPer1m?: number
+  priorityMultiplier?: number
+  priorityInputPer1m?: number
+  priorityOutputPer1m?: number
+  priorityCachedInputPer1m?: number
+  flexInputPer1m?: number
+  flexOutputPer1m?: number
+  flexCachedInputPer1m?: number
+  longContextThresholdTokens?: number
+  longContextInputPer1m?: number
+  longContextOutputPer1m?: number
+  longContextCachedInputPer1m?: number
 }
 
 type OpenRouterModel = {
@@ -29,7 +40,7 @@ const OPENROUTER_PRICE_FALLBACKS: Partial<Record<string, ModelPrice>> = {
   },
 }
 
-const OPENCODE_ZEN_PRICES: Partial<Record<string, ModelPrice>> = {
+const DEFAULT_PRICING_MODELS: Partial<Record<string, ModelPrice>> = {
   "big-pickle": { inputPer1m: 0, cachedInputPer1m: 0, outputPer1m: 0 },
   "deepseek-v4-flash-free": {
     inputPer1m: 0,
@@ -69,73 +80,81 @@ const OPENCODE_ZEN_PRICES: Partial<Record<string, ModelPrice>> = {
   "claude-haiku-4-5": { inputPer1m: 1, cachedInputPer1m: 0.1, outputPer1m: 5 },
   "gemini-3.1-pro": { inputPer1m: 2, cachedInputPer1m: 0.2, outputPer1m: 12 },
   "gemini-3-flash": { inputPer1m: 0.5, cachedInputPer1m: 0.05, outputPer1m: 3 },
-  "gpt-5.5": { inputPer1m: 5, cachedInputPer1m: 0.5, outputPer1m: 30 },
-  "gpt-5.5-pro": { inputPer1m: 30, cachedInputPer1m: 30, outputPer1m: 180 },
-  "gpt-5.4": { inputPer1m: 2.5, cachedInputPer1m: 0.25, outputPer1m: 15 },
-  "gpt-5.4-pro": { inputPer1m: 30, cachedInputPer1m: 30, outputPer1m: 180 },
+  "gpt-5.5": {
+    inputPer1m: 5,
+    cachedInputPer1m: 0.5,
+    outputPer1m: 30,
+    flexInputPer1m: 2.5,
+    flexCachedInputPer1m: 0.25,
+    flexOutputPer1m: 15,
+    priorityInputPer1m: 12.5,
+    priorityCachedInputPer1m: 1.25,
+    priorityOutputPer1m: 75,
+  },
+  "gpt-5.5-pro": {
+    inputPer1m: 30,
+    outputPer1m: 180,
+    flexInputPer1m: 15,
+    flexOutputPer1m: 90,
+  },
+  "gpt-5.4": {
+    inputPer1m: 2.5,
+    cachedInputPer1m: 0.25,
+    outputPer1m: 15,
+    priorityInputPer1m: 5,
+    priorityCachedInputPer1m: 0.5,
+    priorityOutputPer1m: 30,
+    flexInputPer1m: 1.25,
+    flexCachedInputPer1m: 0.125,
+    flexOutputPer1m: 7.5,
+    longContextThresholdTokens: 272_000,
+    longContextInputPer1m: 5,
+    longContextCachedInputPer1m: 0.5,
+    longContextOutputPer1m: 22.5,
+  },
+  "gpt-5.4-pro": {
+    inputPer1m: 30,
+    outputPer1m: 180,
+    flexInputPer1m: 15,
+    flexOutputPer1m: 90,
+    longContextThresholdTokens: 272_000,
+    longContextInputPer1m: 60,
+    longContextOutputPer1m: 270,
+  },
   "gpt-5.4-mini": {
     inputPer1m: 0.75,
     cachedInputPer1m: 0.075,
     outputPer1m: 4.5,
+    flexInputPer1m: 0.375,
+    flexCachedInputPer1m: 0.0375,
+    flexOutputPer1m: 2.25,
   },
   "gpt-5.4-nano": {
     inputPer1m: 0.2,
     cachedInputPer1m: 0.02,
     outputPer1m: 1.25,
+    flexInputPer1m: 0.1,
+    flexCachedInputPer1m: 0.01,
+    flexOutputPer1m: 0.625,
   },
   "gpt-5.3-codex-spark": {
     inputPer1m: 1.75,
     cachedInputPer1m: 0.175,
     outputPer1m: 14,
+    priorityInputPer1m: 3.5,
+    priorityCachedInputPer1m: 0.35,
+    priorityOutputPer1m: 28,
   },
   "gpt-5.3-codex": {
     inputPer1m: 1.75,
     cachedInputPer1m: 0.175,
     outputPer1m: 14,
+    priorityInputPer1m: 3.5,
+    priorityCachedInputPer1m: 0.35,
+    priorityOutputPer1m: 28,
   },
-  "gpt-5.2": { inputPer1m: 1.75, cachedInputPer1m: 0.175, outputPer1m: 14 },
-  "gpt-5.2-codex": {
-    inputPer1m: 1.75,
-    cachedInputPer1m: 0.175,
-    outputPer1m: 14,
-  },
-  "gpt-5.1": { inputPer1m: 1.07, cachedInputPer1m: 0.107, outputPer1m: 8.5 },
-  "gpt-5.1-codex": {
-    inputPer1m: 1.07,
-    cachedInputPer1m: 0.107,
-    outputPer1m: 8.5,
-  },
-  "gpt-5.1-codex-max": {
-    inputPer1m: 1.25,
-    cachedInputPer1m: 0.125,
-    outputPer1m: 10,
-  },
-  "gpt-5.1-codex-mini": {
-    inputPer1m: 0.25,
-    cachedInputPer1m: 0.025,
-    outputPer1m: 2,
-  },
-  "gpt-5": { inputPer1m: 1.07, cachedInputPer1m: 0.107, outputPer1m: 8.5 },
-  "gpt-5-codex": {
-    inputPer1m: 1.07,
-    cachedInputPer1m: 0.107,
-    outputPer1m: 8.5,
-  },
-  "gpt-5-nano": { inputPer1m: 0.05, cachedInputPer1m: 0.005, outputPer1m: 0.4 },
-}
-
-const CHATGPT_PRICES: Partial<Record<string, ModelPrice>> = {
-  "gpt-5.3-codex": {
-    inputPer1m: 1.75,
-    cachedInputPer1m: 0.175,
-    outputPer1m: 14,
-  },
-  "gpt-5.3-codex-spark": {
-    inputPer1m: 1.75,
-    cachedInputPer1m: 0.175,
-    outputPer1m: 14,
-  },
-  "gpt-5.2-codex": {
+  "gpt-5.3": { inputPer1m: 1.75, cachedInputPer1m: 0.175, outputPer1m: 14 },
+  "gpt-5.3-chat-latest": {
     inputPer1m: 1.75,
     cachedInputPer1m: 0.175,
     outputPer1m: 14,
@@ -144,36 +163,106 @@ const CHATGPT_PRICES: Partial<Record<string, ModelPrice>> = {
     inputPer1m: 1.75,
     cachedInputPer1m: 0.175,
     outputPer1m: 14,
+    priorityMultiplier: 2,
+    flexInputPer1m: 0.875,
+    flexCachedInputPer1m: 0.0875,
+    flexOutputPer1m: 7,
+  },
+  "gpt-5.2-chat-latest": {
+    inputPer1m: 1.75,
+    cachedInputPer1m: 0.175,
+    outputPer1m: 14,
+  },
+  "gpt-5.2-codex": {
+    inputPer1m: 1.75,
+    cachedInputPer1m: 0.175,
+    outputPer1m: 14,
+    priorityInputPer1m: 3.5,
+    priorityCachedInputPer1m: 0.35,
+    priorityOutputPer1m: 28,
+  },
+  "gpt-5.1": {
+    inputPer1m: 1.25,
+    cachedInputPer1m: 0.125,
+    outputPer1m: 10,
+    priorityMultiplier: 2,
+    flexInputPer1m: 0.625,
+    flexCachedInputPer1m: 0.0625,
+    flexOutputPer1m: 5,
+  },
+  "gpt-5.1-chat-latest": {
+    inputPer1m: 1.25,
+    cachedInputPer1m: 0.125,
+    outputPer1m: 10,
   },
   "gpt-5.1-codex": {
     inputPer1m: 1.25,
     cachedInputPer1m: 0.125,
     outputPer1m: 10,
+    priorityInputPer1m: 2.5,
+    priorityCachedInputPer1m: 0.25,
+    priorityOutputPer1m: 20,
+  },
+  "gpt-5.1-codex-max": {
+    inputPer1m: 1.25,
+    cachedInputPer1m: 0.125,
+    outputPer1m: 10,
+    priorityInputPer1m: 2.5,
+    priorityCachedInputPer1m: 0.25,
+    priorityOutputPer1m: 20,
   },
   "gpt-5.1-codex-mini": {
     inputPer1m: 0.25,
     cachedInputPer1m: 0.025,
     outputPer1m: 2,
   },
-  "gpt-5-codex": {
+  "gpt-5": {
+    inputPer1m: 1.25,
+    cachedInputPer1m: 0.125,
+    outputPer1m: 10,
+    priorityMultiplier: 2,
+    flexInputPer1m: 0.625,
+    flexCachedInputPer1m: 0.0625,
+    flexOutputPer1m: 5,
+  },
+  "gpt-5-chat-latest": {
     inputPer1m: 1.25,
     cachedInputPer1m: 0.125,
     outputPer1m: 10,
   },
-  "gpt-5.4-mini": {
-    inputPer1m: 0.25,
-    cachedInputPer1m: 0.025,
-    outputPer1m: 2,
+  "gpt-5-codex": {
+    inputPer1m: 1.25,
+    cachedInputPer1m: 0.125,
+    outputPer1m: 10,
+    priorityInputPer1m: 2.5,
+    priorityCachedInputPer1m: 0.25,
+    priorityOutputPer1m: 20,
   },
+  "gpt-5-nano": { inputPer1m: 0.05, cachedInputPer1m: 0.005, outputPer1m: 0.4 },
 }
 
-const CHATGPT_ALIASES: Record<string, string> = {
+const DEFAULT_MODEL_ALIASES: Record<string, string> = {
+  "gpt-5.5-pro*": "gpt-5.5-pro",
+  "gpt-5.5*": "gpt-5.5",
+  "gpt-5.4-pro*": "gpt-5.4-pro",
+  "gpt-5.4-mini*": "gpt-5.4-mini",
+  "gpt-5.4-nano*": "gpt-5.4-nano",
+  "gpt-5.4*": "gpt-5.4",
   "gpt-5.3-codex-spark*": "gpt-5.3-codex-spark",
   "gpt-5.3-codex*": "gpt-5.3-codex",
+  "gpt-5.3-chat-latest*": "gpt-5.3-chat-latest",
+  "gpt-5.3*": "gpt-5.3",
   "gpt-5.2-codex*": "gpt-5.2-codex",
+  "gpt-5.2-chat-latest*": "gpt-5.2-chat-latest",
+  "gpt-5.2*": "gpt-5.2",
+  "gpt-5.1-codex-max*": "gpt-5.1-codex-max",
   "gpt-5.1-codex-mini*": "gpt-5.1-codex-mini",
   "gpt-5.1-codex*": "gpt-5.1-codex",
+  "gpt-5.1-chat-latest*": "gpt-5.1-chat-latest",
+  "gpt-5.1*": "gpt-5.1",
   "gpt-5-codex*": "gpt-5-codex",
+  "gpt-5-chat-latest*": "gpt-5-chat-latest",
+  "gpt-5*": "gpt-5",
 }
 
 function matchesPattern(value: string, pattern: string) {
@@ -184,18 +273,47 @@ function matchesPattern(value: string, pattern: string) {
   return value.startsWith(pattern.slice(0, -1))
 }
 
-function resolveChatGptPrice(model: string) {
-  const normalized = model.toLowerCase()
+function normalizeModelId(model: string) {
+  return model
+    .replace(/^opencode\//, "")
+    .replace(/^openrouter\//, "")
+    .toLowerCase()
+}
 
-  if (CHATGPT_PRICES[normalized]) {
-    return CHATGPT_PRICES[normalized]
+function resolveModelAlias(
+  model: string,
+  aliases: Record<string, string> = DEFAULT_MODEL_ALIASES
+) {
+  const normalized = normalizeModelId(model)
+  let match: { length: number; target: string } | null = null
+
+  for (const [pattern, target] of Object.entries(aliases)) {
+    if (!matchesPattern(normalized, pattern.toLowerCase())) {
+      continue
+    }
+
+    if (!match || pattern.length > match.length) {
+      match = { length: pattern.length, target }
+    }
   }
 
-  const alias = Object.entries(CHATGPT_ALIASES)
-    .sort(([a], [b]) => b.length - a.length)
-    .find(([pattern]) => matchesPattern(normalized, pattern))?.[1]
+  return match?.target
+}
 
-  return alias ? CHATGPT_PRICES[alias] : undefined
+function getPricingForModel(
+  model: string,
+  pricing: Partial<Record<string, ModelPrice>> = DEFAULT_PRICING_MODELS,
+  aliases: Record<string, string> = DEFAULT_MODEL_ALIASES
+) {
+  const normalized = normalizeModelId(model)
+  const exact = pricing[normalized]
+
+  if (exact) {
+    return exact
+  }
+
+  const alias = resolveModelAlias(normalized, aliases)
+  return alias ? pricing[alias.toLowerCase()] : undefined
 }
 
 function pricePer1m(value: string | undefined) {
@@ -258,28 +376,118 @@ async function resolveOpenRouterPrice(model: string) {
   return livePrice || OPENROUTER_PRICE_FALLBACKS[normalized]
 }
 
-function resolveOpenCodeZenPrice(model: string) {
-  return OPENCODE_ZEN_PRICES[model.replace(/^opencode\//, "").toLowerCase()]
+function normalizeServiceTier(serviceTier: string | null | undefined) {
+  const normalized = serviceTier?.trim().toLowerCase()
+  return normalized || null
 }
 
-export function calculateTokenCost(tokens: UsageTokens, price: ModelPrice) {
+function usesPriorityTier(serviceTier: string | null | undefined) {
+  const normalized = normalizeServiceTier(serviceTier)
+  return normalized === "priority" || normalized === "fast"
+}
+
+function usesFlexTier(serviceTier: string | null | undefined) {
+  return normalizeServiceTier(serviceTier) === "flex"
+}
+
+function effectiveRates(
+  tokens: UsageTokens,
+  price: ModelPrice,
+  serviceTier?: string | null
+) {
+  const isLongContext =
+    price.longContextThresholdTokens !== undefined &&
+    tokens.inputTokens > price.longContextThresholdTokens &&
+    price.longContextInputPer1m !== undefined &&
+    price.longContextOutputPer1m !== undefined
+  let inputRate = price.inputPer1m
+  let cachedRate = price.cachedInputPer1m ?? inputRate
+  let outputRate = price.outputPer1m
+
+  if (usesPriorityTier(serviceTier)) {
+    if (
+      price.priorityInputPer1m !== undefined &&
+      price.priorityOutputPer1m !== undefined
+    ) {
+      return {
+        inputRate: price.priorityInputPer1m,
+        cachedRate: price.priorityCachedInputPer1m ?? price.priorityInputPer1m,
+        outputRate: price.priorityOutputPer1m,
+      }
+    }
+
+    if (price.priorityMultiplier !== undefined) {
+      return {
+        inputRate: inputRate * price.priorityMultiplier,
+        cachedRate: cachedRate * price.priorityMultiplier,
+        outputRate: outputRate * price.priorityMultiplier,
+      }
+    }
+  }
+
+  if (
+    usesFlexTier(serviceTier) &&
+    price.flexInputPer1m !== undefined &&
+    price.flexOutputPer1m !== undefined
+  ) {
+    inputRate = price.flexInputPer1m
+    cachedRate = price.flexCachedInputPer1m ?? inputRate
+    outputRate = price.flexOutputPer1m
+
+    if (isLongContext) {
+      inputRate *= 2
+      cachedRate *= 2
+      outputRate *= 1.5
+    }
+
+    return { inputRate, cachedRate, outputRate }
+  }
+
+  if (isLongContext) {
+    inputRate = price.longContextInputPer1m ?? inputRate
+    cachedRate = price.longContextCachedInputPer1m ?? inputRate
+    outputRate = price.longContextOutputPer1m ?? outputRate
+  }
+
+  return { inputRate, cachedRate, outputRate }
+}
+
+export function calculateTokenCost(
+  tokens: UsageTokens,
+  price: ModelPrice,
+  serviceTier?: string | null
+) {
   const cached = Math.min(tokens.cachedInputTokens, tokens.inputTokens)
   const billableInput = Math.max(0, tokens.inputTokens - cached)
   const outputTokens = tokens.outputTokens || tokens.reasoningTokens
-  const cachedRate = price.cachedInputPer1m ?? price.inputPer1m
+  const { inputRate, cachedRate, outputRate } = effectiveRates(
+    tokens,
+    price,
+    serviceTier
+  )
 
   return (
-    (billableInput / 1_000_000) * price.inputPer1m +
+    (billableInput / 1_000_000) * inputRate +
     (cached / 1_000_000) * cachedRate +
-    (outputTokens / 1_000_000) * price.outputPer1m
+    (outputTokens / 1_000_000) * outputRate
   )
+}
+
+export function calculateRegistryCostUsd(
+  model: string,
+  tokens: UsageTokens,
+  serviceTier?: string | null
+) {
+  const price = getPricingForModel(model)
+  return price ? calculateTokenCost(tokens, price, serviceTier) : null
 }
 
 export async function calculateEstimatedCostUsd(
   provider: ProviderId,
   model: string,
   tokens: UsageTokens,
-  upstreamCostUsd = 0
+  upstreamCostUsd = 0,
+  serviceTier?: string | null
 ) {
   if (provider === "openrouter") {
     if (upstreamCostUsd > 0) {
@@ -287,7 +495,7 @@ export async function calculateEstimatedCostUsd(
     }
 
     const price = await resolveOpenRouterPrice(model)
-    return price ? calculateTokenCost(tokens, price) : 0
+    return price ? calculateTokenCost(tokens, price, serviceTier) : 0
   }
 
   if (provider === "opencode-zen") {
@@ -295,16 +503,14 @@ export async function calculateEstimatedCostUsd(
       return upstreamCostUsd
     }
 
-    const price = resolveOpenCodeZenPrice(model)
-    return price ? calculateTokenCost(tokens, price) : 0
+    return calculateRegistryCostUsd(model, tokens, serviceTier) ?? 0
   }
 
   if (provider === "ollama-cloud") {
     return 0
   }
 
-  const price = resolveChatGptPrice(model)
-  return price ? calculateTokenCost(tokens, price) : 0
+  return calculateRegistryCostUsd(model, tokens, serviceTier) ?? 0
 }
 
 export function calculateRealCostUsd(
