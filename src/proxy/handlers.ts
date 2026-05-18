@@ -11,7 +11,7 @@ import {
 import { toCodexModelCatalog } from "./codex-catalog"
 import {
   forwardChatCompletions,
-  forwardCodexControlRequest,
+  forwardCodexAutoReviewResponses,
   forwardResponses,
 } from "./upstreams"
 import type { CodexModelInfo, ManagedModel } from "./model-registry"
@@ -615,7 +615,7 @@ export async function routeProxyRequest(
   }
 
   if (kind === "responses" && modelId === "codex-auto-review") {
-    return forwardCodexControlRequest(codexControlRequest!, "responses")
+    return forwardCodexAutoReviewResponses(codexControlRequest!, body)
   }
 
   const model = (await getEnabledModels()).find(

@@ -205,6 +205,28 @@ function cloneCodexControlHeaders(
   return headers
 }
 
+function cloneCodexResponsesHeaders(request: Request, bearer: string) {
+  const headers = cloneHeaders(request, bearer)
+  headers.set("accept", "text/event-stream")
+  return headers
+}
+
+function normalizeCodexResponsesPayload(body: Record<string, unknown>) {
+  const upstreamBody = { ...body }
+
+  upstreamBody.model = "codex-auto-review"
+  upstreamBody.store = false
+  upstreamBody.stream = true
+
+  delete upstreamBody.max_output_tokens
+  delete upstreamBody.prompt_cache_retention
+  delete upstreamBody.safety_identifier
+  delete upstreamBody.temperature
+  delete upstreamBody.top_p
+
+  return upstreamBody
+}
+
 function codexControlResponseHeaders(headers: Headers) {
   const downstream = new Headers()
 
@@ -1581,6 +1603,37 @@ export async function forwardResponses(input: UpstreamRequest) {
   }
 
   return forwardJson("https://api.openai.com/v1/responses", key, input)
+}
+
+export async function forwardCodexAutoReviewResponses(
+  request: Request,
+  body: Record<string, unknown>
+) {
+  const accountToken = await getActiveAccessToken()
+
+  if (!accountToken) {
+    return json(
+      {
+        error: {
+          message: "Connect a ChatGPT account to use Codex auto-review.",
+          type: "missing_chatgpt_account",
+        },
+      },
+      401
+    )
+  }
+
+  const response = await fetch("https://chatgpt.com/backend-api/codex/responses", {
+    method: "POST",
+    headers: cloneCodexResponsesHeaders(request, accountToken),
+    body: JSON.stringify(normalizeCodexResponsesPayload(body)),
+  })
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  })
 }
 
 export async function forwardCodexControlRequest(request: Request, path: string) {
