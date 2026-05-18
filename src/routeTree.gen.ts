@@ -22,6 +22,8 @@ import { Route as ApiAccountsRouteImport } from './routes/api/accounts'
 import { Route as V1ChatCompletionsRouteImport } from './routes/v1/chat/completions'
 import { Route as BackendApiCodexResponsesRouteImport } from './routes/backend-api/codex/responses'
 import { Route as BackendApiCodexModelsRouteImport } from './routes/backend-api/codex/models'
+import { Route as ApiSystemVersionRouteImport } from './routes/api/system/version'
+import { Route as ApiSystemOpenRouteImport } from './routes/api/system/open'
 import { Route as ApiProvidersOpenrouterRouteImport } from './routes/api/providers/openrouter'
 import { Route as ApiProvidersOpencodeZenRouteImport } from './routes/api/providers/opencode-zen'
 import { Route as ApiProvidersChatgptRouteImport } from './routes/api/providers/chatgpt'
@@ -32,6 +34,8 @@ import { Route as ApiOauthCompleteRouteImport } from './routes/api/oauth/complet
 import { Route as ApiCodexUsageLimitRouteImport } from './routes/api/codex/usage-limit'
 import { Route as ApiCodexModelCatalogRouteImport } from './routes/api/codex/model-catalog'
 import { Route as ApiCodexInstallConfigRouteImport } from './routes/api/codex/install-config'
+import { Route as ApiSystemUpdateCheckRouteImport } from './routes/api/system/update/check'
+import { Route as ApiSystemUpdateApplyRouteImport } from './routes/api/system/update/apply'
 
 const HealthRoute = HealthRouteImport.update({
   id: '/health',
@@ -99,6 +103,16 @@ const BackendApiCodexModelsRoute = BackendApiCodexModelsRouteImport.update({
   path: '/backend-api/codex/models',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSystemVersionRoute = ApiSystemVersionRouteImport.update({
+  id: '/api/system/version',
+  path: '/api/system/version',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSystemOpenRoute = ApiSystemOpenRouteImport.update({
+  id: '/api/system/open',
+  path: '/api/system/open',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiProvidersOpenrouterRoute = ApiProvidersOpenrouterRouteImport.update({
   id: '/api/providers/openrouter',
   path: '/api/providers/openrouter',
@@ -149,6 +163,16 @@ const ApiCodexInstallConfigRoute = ApiCodexInstallConfigRouteImport.update({
   path: '/api/codex/install-config',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSystemUpdateCheckRoute = ApiSystemUpdateCheckRouteImport.update({
+  id: '/api/system/update/check',
+  path: '/api/system/update/check',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSystemUpdateApplyRoute = ApiSystemUpdateApplyRouteImport.update({
+  id: '/api/system/update/apply',
+  path: '/api/system/update/apply',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -171,9 +195,13 @@ export interface FileRoutesByFullPath {
   '/api/providers/chatgpt': typeof ApiProvidersChatgptRoute
   '/api/providers/opencode-zen': typeof ApiProvidersOpencodeZenRoute
   '/api/providers/openrouter': typeof ApiProvidersOpenrouterRoute
+  '/api/system/open': typeof ApiSystemOpenRoute
+  '/api/system/version': typeof ApiSystemVersionRoute
   '/backend-api/codex/models': typeof BackendApiCodexModelsRoute
   '/backend-api/codex/responses': typeof BackendApiCodexResponsesRoute
   '/v1/chat/completions': typeof V1ChatCompletionsRoute
+  '/api/system/update/apply': typeof ApiSystemUpdateApplyRoute
+  '/api/system/update/check': typeof ApiSystemUpdateCheckRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -196,9 +224,13 @@ export interface FileRoutesByTo {
   '/api/providers/chatgpt': typeof ApiProvidersChatgptRoute
   '/api/providers/opencode-zen': typeof ApiProvidersOpencodeZenRoute
   '/api/providers/openrouter': typeof ApiProvidersOpenrouterRoute
+  '/api/system/open': typeof ApiSystemOpenRoute
+  '/api/system/version': typeof ApiSystemVersionRoute
   '/backend-api/codex/models': typeof BackendApiCodexModelsRoute
   '/backend-api/codex/responses': typeof BackendApiCodexResponsesRoute
   '/v1/chat/completions': typeof V1ChatCompletionsRoute
+  '/api/system/update/apply': typeof ApiSystemUpdateApplyRoute
+  '/api/system/update/check': typeof ApiSystemUpdateCheckRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -222,9 +254,13 @@ export interface FileRoutesById {
   '/api/providers/chatgpt': typeof ApiProvidersChatgptRoute
   '/api/providers/opencode-zen': typeof ApiProvidersOpencodeZenRoute
   '/api/providers/openrouter': typeof ApiProvidersOpenrouterRoute
+  '/api/system/open': typeof ApiSystemOpenRoute
+  '/api/system/version': typeof ApiSystemVersionRoute
   '/backend-api/codex/models': typeof BackendApiCodexModelsRoute
   '/backend-api/codex/responses': typeof BackendApiCodexResponsesRoute
   '/v1/chat/completions': typeof V1ChatCompletionsRoute
+  '/api/system/update/apply': typeof ApiSystemUpdateApplyRoute
+  '/api/system/update/check': typeof ApiSystemUpdateCheckRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -249,9 +285,13 @@ export interface FileRouteTypes {
     | '/api/providers/chatgpt'
     | '/api/providers/opencode-zen'
     | '/api/providers/openrouter'
+    | '/api/system/open'
+    | '/api/system/version'
     | '/backend-api/codex/models'
     | '/backend-api/codex/responses'
     | '/v1/chat/completions'
+    | '/api/system/update/apply'
+    | '/api/system/update/check'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -274,9 +314,13 @@ export interface FileRouteTypes {
     | '/api/providers/chatgpt'
     | '/api/providers/opencode-zen'
     | '/api/providers/openrouter'
+    | '/api/system/open'
+    | '/api/system/version'
     | '/backend-api/codex/models'
     | '/backend-api/codex/responses'
     | '/v1/chat/completions'
+    | '/api/system/update/apply'
+    | '/api/system/update/check'
   id:
     | '__root__'
     | '/'
@@ -299,9 +343,13 @@ export interface FileRouteTypes {
     | '/api/providers/chatgpt'
     | '/api/providers/opencode-zen'
     | '/api/providers/openrouter'
+    | '/api/system/open'
+    | '/api/system/version'
     | '/backend-api/codex/models'
     | '/backend-api/codex/responses'
     | '/v1/chat/completions'
+    | '/api/system/update/apply'
+    | '/api/system/update/check'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -325,9 +373,13 @@ export interface RootRouteChildren {
   ApiProvidersChatgptRoute: typeof ApiProvidersChatgptRoute
   ApiProvidersOpencodeZenRoute: typeof ApiProvidersOpencodeZenRoute
   ApiProvidersOpenrouterRoute: typeof ApiProvidersOpenrouterRoute
+  ApiSystemOpenRoute: typeof ApiSystemOpenRoute
+  ApiSystemVersionRoute: typeof ApiSystemVersionRoute
   BackendApiCodexModelsRoute: typeof BackendApiCodexModelsRoute
   BackendApiCodexResponsesRoute: typeof BackendApiCodexResponsesRoute
   V1ChatCompletionsRoute: typeof V1ChatCompletionsRoute
+  ApiSystemUpdateApplyRoute: typeof ApiSystemUpdateApplyRoute
+  ApiSystemUpdateCheckRoute: typeof ApiSystemUpdateCheckRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -423,6 +475,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BackendApiCodexModelsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/system/version': {
+      id: '/api/system/version'
+      path: '/api/system/version'
+      fullPath: '/api/system/version'
+      preLoaderRoute: typeof ApiSystemVersionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/system/open': {
+      id: '/api/system/open'
+      path: '/api/system/open'
+      fullPath: '/api/system/open'
+      preLoaderRoute: typeof ApiSystemOpenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/providers/openrouter': {
       id: '/api/providers/openrouter'
       path: '/api/providers/openrouter'
@@ -493,6 +559,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCodexInstallConfigRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/system/update/check': {
+      id: '/api/system/update/check'
+      path: '/api/system/update/check'
+      fullPath: '/api/system/update/check'
+      preLoaderRoute: typeof ApiSystemUpdateCheckRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/system/update/apply': {
+      id: '/api/system/update/apply'
+      path: '/api/system/update/apply'
+      fullPath: '/api/system/update/apply'
+      preLoaderRoute: typeof ApiSystemUpdateApplyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -517,9 +597,13 @@ const rootRouteChildren: RootRouteChildren = {
   ApiProvidersChatgptRoute: ApiProvidersChatgptRoute,
   ApiProvidersOpencodeZenRoute: ApiProvidersOpencodeZenRoute,
   ApiProvidersOpenrouterRoute: ApiProvidersOpenrouterRoute,
+  ApiSystemOpenRoute: ApiSystemOpenRoute,
+  ApiSystemVersionRoute: ApiSystemVersionRoute,
   BackendApiCodexModelsRoute: BackendApiCodexModelsRoute,
   BackendApiCodexResponsesRoute: BackendApiCodexResponsesRoute,
   V1ChatCompletionsRoute: V1ChatCompletionsRoute,
+  ApiSystemUpdateApplyRoute: ApiSystemUpdateApplyRoute,
+  ApiSystemUpdateCheckRoute: ApiSystemUpdateCheckRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

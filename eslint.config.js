@@ -2,4 +2,4 @@
 
 import { tanstackConfig } from "@tanstack/eslint-config"
 
-export default [{ ignores: [".output/**"] }, ...tanstackConfig]
+export default [{ ignores: [".output/**", "release/**"] }, ...tanstackConfig]
