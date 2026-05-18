@@ -50,6 +50,7 @@ type InstallConfigResponse = {
   ok: boolean
   path?: string
   backupPath?: string | null
+  installed?: boolean
   error?: {
     message?: string
   }
@@ -91,6 +92,28 @@ function App() {
     }
 
     void loadUsage()
+  }, [])
+
+  useEffect(() => {
+    async function loadInstallStatus() {
+      try {
+        const response = await fetch("/api/codex/install-config")
+        const data = (await response.json()) as InstallConfigResponse
+
+        if (!response.ok || !data.ok) {
+          return
+        }
+
+        if (data.installed) {
+          setInstallStatus("installed")
+          setInstallMessage(data.path ? `Installed to ${data.path}` : null)
+        }
+      } catch {
+        // Keep the button actionable if the status check fails.
+      }
+    }
+
+    void loadInstallStatus()
   }, [])
 
   const installConfig = async () => {

@@ -89,6 +89,21 @@ function installCodexConfig(content: string) {
   return `${upsertProviderTable(upsertTopLevelModelProvider(lines)).join("\n").trimEnd()}\n`
 }
 
+export async function getCodexModelManagerConfigStatus() {
+  const path = codexConfigPath()
+
+  if (!(await fileExists(path))) {
+    return { path, installed: false }
+  }
+
+  const content = await readFile(path, "utf8")
+
+  return {
+    path,
+    installed: installCodexConfig(content) === content,
+  }
+}
+
 export async function installCodexModelManagerConfig() {
   const path = codexConfigPath()
   const exists = await fileExists(path)
