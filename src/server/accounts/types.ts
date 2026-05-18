@@ -53,6 +53,15 @@ export type StoredOpenRouterModel = {
 
 export type PublicOpenRouterModel = StoredOpenRouterModel
 
+export type StoredChatGptModel = {
+  id: string
+  displayName: string
+  enabled: boolean
+  updatedAt: string
+}
+
+export type PublicChatGptModel = StoredChatGptModel
+
 export type OAuthTokens = {
   accessToken: string
   refreshToken: string

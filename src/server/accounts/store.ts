@@ -7,9 +7,11 @@ import type {
   OAuthTokens,
   PublicAccount,
   PublicApiKeyProvider,
+  PublicChatGptModel,
   PublicOpenRouterModel,
   StoredAccount,
   StoredApiKeyProvider,
+  StoredChatGptModel,
   StoredOpenRouterModel,
 } from "./types"
 
@@ -17,6 +19,7 @@ type StoreFile = {
   accounts: Array<StoredAccount>
   apiKeyProviders: Array<StoredApiKeyProvider>
   openRouterModels: Array<StoredOpenRouterModel>
+  chatGptModels: Array<StoredChatGptModel>
 }
 
 const DEFAULT_EMAIL = "unknown@example.com"
@@ -89,9 +92,17 @@ async function readStore(): Promise<StoreFile> {
       openRouterModels: Array.isArray(parsed.openRouterModels)
         ? parsed.openRouterModels
         : [],
+      chatGptModels: Array.isArray(parsed.chatGptModels)
+        ? parsed.chatGptModels
+        : [],
     }
   } catch {
-    return { accounts: [], apiKeyProviders: [], openRouterModels: [] }
+    return {
+      accounts: [],
+      apiKeyProviders: [],
+      openRouterModels: [],
+      chatGptModels: [],
+    }
   }
 }
 
@@ -204,6 +215,38 @@ export async function listOpenRouterModelSettings(): Promise<
 > {
   const store = await readStore()
   return store.openRouterModels
+}
+
+export async function listChatGptModelSettings(): Promise<
+  Array<PublicChatGptModel>
+> {
+  const store = await readStore()
+  return store.chatGptModels
+}
+
+export async function upsertChatGptModelSetting(
+  model: Omit<StoredChatGptModel, "updatedAt">
+): Promise<PublicChatGptModel> {
+  const now = new Date().toISOString()
+  const nextModel = { ...model, updatedAt: now }
+
+  writeQueue = writeQueue.then(async () => {
+    const store = await readStore()
+    const existing = store.chatGptModels.findIndex(
+      (candidate) => candidate.id === nextModel.id
+    )
+
+    if (existing >= 0) {
+      store.chatGptModels[existing] = nextModel
+    } else {
+      store.chatGptModels.push(nextModel)
+    }
+
+    await writeStore(store)
+  })
+
+  await writeQueue
+  return nextModel
 }
 
 export async function upsertOpenRouterModelSetting(

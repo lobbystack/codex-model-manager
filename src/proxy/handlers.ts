@@ -12,6 +12,7 @@ import { forwardChatCompletions, forwardResponses } from "./upstreams"
 import type { CodexModelInfo, ManagedModel } from "./model-registry"
 import {
   getActiveAccount,
+  listChatGptModelSettings,
   listOpenRouterModelSettings,
 } from "@/server/accounts/store"
 import { writeCodexModelCatalog } from "@/server/codex/catalog-file"
@@ -31,7 +32,7 @@ export function proxyJson(data: unknown, status = 200) {
   })
 }
 
-async function fetchChatGptCodexModels(): Promise<Array<ManagedModel>> {
+export async function fetchChatGptCodexModels(): Promise<Array<ManagedModel>> {
   const account = await getActiveAccount()
   const token = account ? await getActiveAccessToken() : null
 
@@ -149,7 +150,14 @@ function getRequestedModel(body: Record<string, unknown> | null) {
 
 export async function getEnabledModels() {
   const settings = await listOpenRouterModelSettings()
+  const chatGptSettings = await listChatGptModelSettings()
   const liveOpenAIModels = await fetchChatGptCodexModels()
+  const chatGptSettingsById = new Map(
+    chatGptSettings.map((model) => [model.id, model])
+  )
+  const enabledLiveOpenAIModels = liveOpenAIModels.filter(
+    (model) => chatGptSettingsById.get(model.id)?.enabled ?? model.enabled
+  )
   const openRouterCapabilities = settings.some(
     (model) => model.providerName || model.id.startsWith("openrouter/")
   )
@@ -189,7 +197,11 @@ export async function getEnabledModels() {
       })
     })
 
-  return [...liveOpenAIModels, ...staticModels, ...configuredOpenRouterModels]
+  return [
+    ...enabledLiveOpenAIModels,
+    ...staticModels,
+    ...configuredOpenRouterModels,
+  ]
 }
 
 export async function getHealth() {

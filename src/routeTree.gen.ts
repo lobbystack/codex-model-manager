@@ -22,6 +22,7 @@ import { Route as V1ChatCompletionsRouteImport } from './routes/v1/chat/completi
 import { Route as BackendApiCodexResponsesRouteImport } from './routes/backend-api/codex/responses'
 import { Route as BackendApiCodexModelsRouteImport } from './routes/backend-api/codex/models'
 import { Route as ApiProvidersOpenrouterRouteImport } from './routes/api/providers/openrouter'
+import { Route as ApiProvidersChatgptRouteImport } from './routes/api/providers/chatgpt'
 import { Route as ApiOauthStatusRouteImport } from './routes/api/oauth/status'
 import { Route as ApiOauthStartRouteImport } from './routes/api/oauth/start'
 import { Route as ApiOauthManualCallbackRouteImport } from './routes/api/oauth/manual-callback'
@@ -94,6 +95,11 @@ const ApiProvidersOpenrouterRoute = ApiProvidersOpenrouterRouteImport.update({
   path: '/api/providers/openrouter',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiProvidersChatgptRoute = ApiProvidersChatgptRouteImport.update({
+  id: '/api/providers/chatgpt',
+  path: '/api/providers/chatgpt',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiOauthStatusRoute = ApiOauthStatusRouteImport.update({
   id: '/api/oauth/status',
   path: '/api/oauth/status',
@@ -135,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/api/oauth/manual-callback': typeof ApiOauthManualCallbackRoute
   '/api/oauth/start': typeof ApiOauthStartRoute
   '/api/oauth/status': typeof ApiOauthStatusRoute
+  '/api/providers/chatgpt': typeof ApiProvidersChatgptRoute
   '/api/providers/openrouter': typeof ApiProvidersOpenrouterRoute
   '/backend-api/codex/models': typeof BackendApiCodexModelsRoute
   '/backend-api/codex/responses': typeof BackendApiCodexResponsesRoute
@@ -155,6 +162,7 @@ export interface FileRoutesByTo {
   '/api/oauth/manual-callback': typeof ApiOauthManualCallbackRoute
   '/api/oauth/start': typeof ApiOauthStartRoute
   '/api/oauth/status': typeof ApiOauthStatusRoute
+  '/api/providers/chatgpt': typeof ApiProvidersChatgptRoute
   '/api/providers/openrouter': typeof ApiProvidersOpenrouterRoute
   '/backend-api/codex/models': typeof BackendApiCodexModelsRoute
   '/backend-api/codex/responses': typeof BackendApiCodexResponsesRoute
@@ -176,6 +184,7 @@ export interface FileRoutesById {
   '/api/oauth/manual-callback': typeof ApiOauthManualCallbackRoute
   '/api/oauth/start': typeof ApiOauthStartRoute
   '/api/oauth/status': typeof ApiOauthStatusRoute
+  '/api/providers/chatgpt': typeof ApiProvidersChatgptRoute
   '/api/providers/openrouter': typeof ApiProvidersOpenrouterRoute
   '/backend-api/codex/models': typeof BackendApiCodexModelsRoute
   '/backend-api/codex/responses': typeof BackendApiCodexResponsesRoute
@@ -198,6 +207,7 @@ export interface FileRouteTypes {
     | '/api/oauth/manual-callback'
     | '/api/oauth/start'
     | '/api/oauth/status'
+    | '/api/providers/chatgpt'
     | '/api/providers/openrouter'
     | '/backend-api/codex/models'
     | '/backend-api/codex/responses'
@@ -218,6 +228,7 @@ export interface FileRouteTypes {
     | '/api/oauth/manual-callback'
     | '/api/oauth/start'
     | '/api/oauth/status'
+    | '/api/providers/chatgpt'
     | '/api/providers/openrouter'
     | '/backend-api/codex/models'
     | '/backend-api/codex/responses'
@@ -238,6 +249,7 @@ export interface FileRouteTypes {
     | '/api/oauth/manual-callback'
     | '/api/oauth/start'
     | '/api/oauth/status'
+    | '/api/providers/chatgpt'
     | '/api/providers/openrouter'
     | '/backend-api/codex/models'
     | '/backend-api/codex/responses'
@@ -259,6 +271,7 @@ export interface RootRouteChildren {
   ApiOauthManualCallbackRoute: typeof ApiOauthManualCallbackRoute
   ApiOauthStartRoute: typeof ApiOauthStartRoute
   ApiOauthStatusRoute: typeof ApiOauthStatusRoute
+  ApiProvidersChatgptRoute: typeof ApiProvidersChatgptRoute
   ApiProvidersOpenrouterRoute: typeof ApiProvidersOpenrouterRoute
   BackendApiCodexModelsRoute: typeof BackendApiCodexModelsRoute
   BackendApiCodexResponsesRoute: typeof BackendApiCodexResponsesRoute
@@ -358,6 +371,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiProvidersOpenrouterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/providers/chatgpt': {
+      id: '/api/providers/chatgpt'
+      path: '/api/providers/chatgpt'
+      fullPath: '/api/providers/chatgpt'
+      preLoaderRoute: typeof ApiProvidersChatgptRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/oauth/status': {
       id: '/api/oauth/status'
       path: '/api/oauth/status'
@@ -411,6 +431,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiOauthManualCallbackRoute: ApiOauthManualCallbackRoute,
   ApiOauthStartRoute: ApiOauthStartRoute,
   ApiOauthStatusRoute: ApiOauthStatusRoute,
+  ApiProvidersChatgptRoute: ApiProvidersChatgptRoute,
   ApiProvidersOpenrouterRoute: ApiProvidersOpenrouterRoute,
   BackendApiCodexModelsRoute: BackendApiCodexModelsRoute,
   BackendApiCodexResponsesRoute: BackendApiCodexResponsesRoute,

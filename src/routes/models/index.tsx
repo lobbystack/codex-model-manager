@@ -18,9 +18,12 @@ export const Route = createFileRoute("/models/")({
   component: ModelsPage,
 })
 
+type ProviderTab = "chatgpt" | "openrouter"
+
 type ModelRow = {
   id: string
   displayName: string
+  provider: ProviderTab
   providerName: string
   upstreamModel: string
   enabled: boolean
@@ -31,7 +34,7 @@ type ModelRow = {
   icon: ElementType
 }
 
-type OpenRouterModelsResponse = {
+type ProviderModelsResponse = {
   models?: Array<{
     id: string
     displayName: string
@@ -50,6 +53,7 @@ type OpenRouterModelsResponse = {
 
 const providerIcons: Record<string, ElementType | undefined> = {
   anthropic: Activity,
+  chatgpt: Triangle,
   google: Zap,
   openai: Triangle,
   qwen: Activity,
@@ -68,12 +72,16 @@ const modelAesthetics: Record<
 }
 
 function iconForModel(id: string) {
+  if (!id.startsWith("openrouter/")) {
+    return Triangle
+  }
+
   const providerSlug = id.replace(/^openrouter\//, "").split("/")[0]
   return modelAesthetics[id]?.icon || providerIcons[providerSlug] || Activity
 }
 
 function ModelsPage() {
-  const [activeTab, setActiveTab] = useState("openrouter")
+  const [activeTab, setActiveTab] = useState<ProviderTab>("chatgpt")
   const [searchQuery, setSearchQuery] = useState("")
   const [models, setModels] = useState<Array<ModelRow>>([])
   const [enabledStates, setEnabledStates] = useState<
@@ -85,7 +93,12 @@ function ModelsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const tabs = [{ id: "openrouter", label: "OpenRouter" }]
+  const tabs = [
+    { id: "chatgpt", label: "ChatGPT" },
+    { id: "openrouter", label: "OpenRouter" },
+  ] as const
+  const activeTabLabel =
+    tabs.find((tab) => tab.id === activeTab)?.label || "provider"
 
   const filteredModels = models.filter(
     (model) =>
@@ -95,17 +108,17 @@ function ModelsPage() {
   )
 
   useEffect(() => {
-    async function loadOpenRouterModels() {
+    async function loadProviderModels() {
       setIsLoading(true)
       setError(null)
 
       try {
-        const response = await fetch("/api/providers/openrouter")
-        const data = (await response.json()) as OpenRouterModelsResponse
+        const response = await fetch(`/api/providers/${activeTab}`)
+        const data = (await response.json()) as ProviderModelsResponse
 
         if (!response.ok) {
           throw new Error(
-            data.error?.message || "Unable to load OpenRouter models."
+            data.error?.message || `Unable to load ${activeTabLabel} models.`
           )
         }
 
@@ -113,6 +126,7 @@ function ModelsPage() {
           (data.models || []).map((model) => ({
             id: model.id,
             displayName: model.displayName,
+            provider: activeTab,
             providerName:
               modelAesthetics[model.id]?.providerName || model.providerName,
             upstreamModel: model.upstreamModel,
@@ -128,15 +142,17 @@ function ModelsPage() {
         setError(
           loadError instanceof Error
             ? loadError.message
-            : "Unable to load OpenRouter models."
+            : `Unable to load ${activeTabLabel} models.`
         )
       } finally {
         setIsLoading(false)
       }
     }
 
-    void loadOpenRouterModels()
-  }, [])
+    setEnabledStates({})
+    setSavingStates({})
+    void loadProviderModels()
+  }, [activeTab, activeTabLabel])
 
   const toggleModel = async (model: ModelRow, enabled: boolean) => {
     setEnabledStates((prev) => ({
@@ -147,7 +163,7 @@ function ModelsPage() {
     setError(null)
 
     try {
-      const response = await fetch("/api/providers/openrouter", {
+      const response = await fetch(`/api/providers/${model.provider}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -162,7 +178,7 @@ function ModelsPage() {
           outputLimit: model.outputLimit,
         }),
       })
-      const data = (await response.json()) as OpenRouterModelsResponse
+      const data = (await response.json()) as ProviderModelsResponse
 
       if (!response.ok) {
         throw new Error(data.error?.message || "Unable to update model.")
@@ -297,7 +313,7 @@ function ModelsPage() {
 
               {isLoading ? (
                 <div className="py-8 text-sm text-muted-foreground">
-                  Loading OpenRouter models...
+                  Loading {activeTabLabel} models...
                 </div>
               ) : null}
 
@@ -307,7 +323,7 @@ function ModelsPage() {
 
               {!isLoading && !error && filteredModels.length === 0 ? (
                 <div className="py-8 text-sm text-muted-foreground">
-                  No OpenRouter models found.
+                  No {activeTabLabel} models found.
                 </div>
               ) : null}
             </div>
