@@ -8,44 +8,389 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from "./routes/__root"
-import { Route as IndexRouteImport } from "./routes/index"
+import { Route as rootRouteImport } from './routes/__root'
+import { Route as HealthRouteImport } from './routes/health'
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProvidersIndexRouteImport } from './routes/providers/index'
+import { Route as ModelsIndexRouteImport } from './routes/models/index'
+import { Route as V1ResponsesRouteImport } from './routes/v1/responses'
+import { Route as V1ModelsRouteImport } from './routes/v1/models'
+import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
+import { Route as ApiModelsRouteImport } from './routes/api/models'
+import { Route as ApiAccountsRouteImport } from './routes/api/accounts'
+import { Route as V1ChatCompletionsRouteImport } from './routes/v1/chat/completions'
+import { Route as BackendApiCodexResponsesRouteImport } from './routes/backend-api/codex/responses'
+import { Route as BackendApiCodexModelsRouteImport } from './routes/backend-api/codex/models'
+import { Route as ApiProvidersOpenrouterRouteImport } from './routes/api/providers/openrouter'
+import { Route as ApiOauthStatusRouteImport } from './routes/api/oauth/status'
+import { Route as ApiOauthStartRouteImport } from './routes/api/oauth/start'
+import { Route as ApiOauthManualCallbackRouteImport } from './routes/api/oauth/manual-callback'
+import { Route as ApiOauthCompleteRouteImport } from './routes/api/oauth/complete'
+import { Route as ApiCodexModelCatalogRouteImport } from './routes/api/codex/model-catalog'
 
+const HealthRoute = HealthRouteImport.update({
+  id: '/health',
+  path: '/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
-  id: "/",
-  path: "/",
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProvidersIndexRoute = ProvidersIndexRouteImport.update({
+  id: '/providers/',
+  path: '/providers/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ModelsIndexRoute = ModelsIndexRouteImport.update({
+  id: '/models/',
+  path: '/models/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V1ResponsesRoute = V1ResponsesRouteImport.update({
+  id: '/v1/responses',
+  path: '/v1/responses',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V1ModelsRoute = V1ModelsRouteImport.update({
+  id: '/v1/models',
+  path: '/v1/models',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiModelsRoute = ApiModelsRouteImport.update({
+  id: '/api/models',
+  path: '/api/models',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAccountsRoute = ApiAccountsRouteImport.update({
+  id: '/api/accounts',
+  path: '/api/accounts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V1ChatCompletionsRoute = V1ChatCompletionsRouteImport.update({
+  id: '/v1/chat/completions',
+  path: '/v1/chat/completions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BackendApiCodexResponsesRoute =
+  BackendApiCodexResponsesRouteImport.update({
+    id: '/backend-api/codex/responses',
+    path: '/backend-api/codex/responses',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const BackendApiCodexModelsRoute = BackendApiCodexModelsRouteImport.update({
+  id: '/backend-api/codex/models',
+  path: '/backend-api/codex/models',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProvidersOpenrouterRoute = ApiProvidersOpenrouterRouteImport.update({
+  id: '/api/providers/openrouter',
+  path: '/api/providers/openrouter',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiOauthStatusRoute = ApiOauthStatusRouteImport.update({
+  id: '/api/oauth/status',
+  path: '/api/oauth/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiOauthStartRoute = ApiOauthStartRouteImport.update({
+  id: '/api/oauth/start',
+  path: '/api/oauth/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiOauthManualCallbackRoute = ApiOauthManualCallbackRouteImport.update({
+  id: '/api/oauth/manual-callback',
+  path: '/api/oauth/manual-callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiOauthCompleteRoute = ApiOauthCompleteRouteImport.update({
+  id: '/api/oauth/complete',
+  path: '/api/oauth/complete',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCodexModelCatalogRoute = ApiCodexModelCatalogRouteImport.update({
+  id: '/api/codex/model-catalog',
+  path: '/api/codex/model-catalog',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
-  "/": typeof IndexRoute
+  '/': typeof IndexRoute
+  '/health': typeof HealthRoute
+  '/api/accounts': typeof ApiAccountsRoute
+  '/api/models': typeof ApiModelsRoute
+  '/auth/callback': typeof AuthCallbackRoute
+  '/v1/models': typeof V1ModelsRoute
+  '/v1/responses': typeof V1ResponsesRoute
+  '/models/': typeof ModelsIndexRoute
+  '/providers/': typeof ProvidersIndexRoute
+  '/api/codex/model-catalog': typeof ApiCodexModelCatalogRoute
+  '/api/oauth/complete': typeof ApiOauthCompleteRoute
+  '/api/oauth/manual-callback': typeof ApiOauthManualCallbackRoute
+  '/api/oauth/start': typeof ApiOauthStartRoute
+  '/api/oauth/status': typeof ApiOauthStatusRoute
+  '/api/providers/openrouter': typeof ApiProvidersOpenrouterRoute
+  '/backend-api/codex/models': typeof BackendApiCodexModelsRoute
+  '/backend-api/codex/responses': typeof BackendApiCodexResponsesRoute
+  '/v1/chat/completions': typeof V1ChatCompletionsRoute
 }
 export interface FileRoutesByTo {
-  "/": typeof IndexRoute
+  '/': typeof IndexRoute
+  '/health': typeof HealthRoute
+  '/api/accounts': typeof ApiAccountsRoute
+  '/api/models': typeof ApiModelsRoute
+  '/auth/callback': typeof AuthCallbackRoute
+  '/v1/models': typeof V1ModelsRoute
+  '/v1/responses': typeof V1ResponsesRoute
+  '/models': typeof ModelsIndexRoute
+  '/providers': typeof ProvidersIndexRoute
+  '/api/codex/model-catalog': typeof ApiCodexModelCatalogRoute
+  '/api/oauth/complete': typeof ApiOauthCompleteRoute
+  '/api/oauth/manual-callback': typeof ApiOauthManualCallbackRoute
+  '/api/oauth/start': typeof ApiOauthStartRoute
+  '/api/oauth/status': typeof ApiOauthStatusRoute
+  '/api/providers/openrouter': typeof ApiProvidersOpenrouterRoute
+  '/backend-api/codex/models': typeof BackendApiCodexModelsRoute
+  '/backend-api/codex/responses': typeof BackendApiCodexResponsesRoute
+  '/v1/chat/completions': typeof V1ChatCompletionsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  "/": typeof IndexRoute
+  '/': typeof IndexRoute
+  '/health': typeof HealthRoute
+  '/api/accounts': typeof ApiAccountsRoute
+  '/api/models': typeof ApiModelsRoute
+  '/auth/callback': typeof AuthCallbackRoute
+  '/v1/models': typeof V1ModelsRoute
+  '/v1/responses': typeof V1ResponsesRoute
+  '/models/': typeof ModelsIndexRoute
+  '/providers/': typeof ProvidersIndexRoute
+  '/api/codex/model-catalog': typeof ApiCodexModelCatalogRoute
+  '/api/oauth/complete': typeof ApiOauthCompleteRoute
+  '/api/oauth/manual-callback': typeof ApiOauthManualCallbackRoute
+  '/api/oauth/start': typeof ApiOauthStartRoute
+  '/api/oauth/status': typeof ApiOauthStatusRoute
+  '/api/providers/openrouter': typeof ApiProvidersOpenrouterRoute
+  '/backend-api/codex/models': typeof BackendApiCodexModelsRoute
+  '/backend-api/codex/responses': typeof BackendApiCodexResponsesRoute
+  '/v1/chat/completions': typeof V1ChatCompletionsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: "/"
+  fullPaths:
+    | '/'
+    | '/health'
+    | '/api/accounts'
+    | '/api/models'
+    | '/auth/callback'
+    | '/v1/models'
+    | '/v1/responses'
+    | '/models/'
+    | '/providers/'
+    | '/api/codex/model-catalog'
+    | '/api/oauth/complete'
+    | '/api/oauth/manual-callback'
+    | '/api/oauth/start'
+    | '/api/oauth/status'
+    | '/api/providers/openrouter'
+    | '/backend-api/codex/models'
+    | '/backend-api/codex/responses'
+    | '/v1/chat/completions'
   fileRoutesByTo: FileRoutesByTo
-  to: "/"
-  id: "__root__" | "/"
+  to:
+    | '/'
+    | '/health'
+    | '/api/accounts'
+    | '/api/models'
+    | '/auth/callback'
+    | '/v1/models'
+    | '/v1/responses'
+    | '/models'
+    | '/providers'
+    | '/api/codex/model-catalog'
+    | '/api/oauth/complete'
+    | '/api/oauth/manual-callback'
+    | '/api/oauth/start'
+    | '/api/oauth/status'
+    | '/api/providers/openrouter'
+    | '/backend-api/codex/models'
+    | '/backend-api/codex/responses'
+    | '/v1/chat/completions'
+  id:
+    | '__root__'
+    | '/'
+    | '/health'
+    | '/api/accounts'
+    | '/api/models'
+    | '/auth/callback'
+    | '/v1/models'
+    | '/v1/responses'
+    | '/models/'
+    | '/providers/'
+    | '/api/codex/model-catalog'
+    | '/api/oauth/complete'
+    | '/api/oauth/manual-callback'
+    | '/api/oauth/start'
+    | '/api/oauth/status'
+    | '/api/providers/openrouter'
+    | '/backend-api/codex/models'
+    | '/backend-api/codex/responses'
+    | '/v1/chat/completions'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  HealthRoute: typeof HealthRoute
+  ApiAccountsRoute: typeof ApiAccountsRoute
+  ApiModelsRoute: typeof ApiModelsRoute
+  AuthCallbackRoute: typeof AuthCallbackRoute
+  V1ModelsRoute: typeof V1ModelsRoute
+  V1ResponsesRoute: typeof V1ResponsesRoute
+  ModelsIndexRoute: typeof ModelsIndexRoute
+  ProvidersIndexRoute: typeof ProvidersIndexRoute
+  ApiCodexModelCatalogRoute: typeof ApiCodexModelCatalogRoute
+  ApiOauthCompleteRoute: typeof ApiOauthCompleteRoute
+  ApiOauthManualCallbackRoute: typeof ApiOauthManualCallbackRoute
+  ApiOauthStartRoute: typeof ApiOauthStartRoute
+  ApiOauthStatusRoute: typeof ApiOauthStatusRoute
+  ApiProvidersOpenrouterRoute: typeof ApiProvidersOpenrouterRoute
+  BackendApiCodexModelsRoute: typeof BackendApiCodexModelsRoute
+  BackendApiCodexResponsesRoute: typeof BackendApiCodexResponsesRoute
+  V1ChatCompletionsRoute: typeof V1ChatCompletionsRoute
 }
 
-declare module "@tanstack/react-router" {
+declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    "/": {
-      id: "/"
-      path: "/"
-      fullPath: "/"
+    '/health': {
+      id: '/health'
+      path: '/health'
+      fullPath: '/health'
+      preLoaderRoute: typeof HealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/providers/': {
+      id: '/providers/'
+      path: '/providers'
+      fullPath: '/providers/'
+      preLoaderRoute: typeof ProvidersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/models/': {
+      id: '/models/'
+      path: '/models'
+      fullPath: '/models/'
+      preLoaderRoute: typeof ModelsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v1/responses': {
+      id: '/v1/responses'
+      path: '/v1/responses'
+      fullPath: '/v1/responses'
+      preLoaderRoute: typeof V1ResponsesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v1/models': {
+      id: '/v1/models'
+      path: '/v1/models'
+      fullPath: '/v1/models'
+      preLoaderRoute: typeof V1ModelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/models': {
+      id: '/api/models'
+      path: '/api/models'
+      fullPath: '/api/models'
+      preLoaderRoute: typeof ApiModelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/accounts': {
+      id: '/api/accounts'
+      path: '/api/accounts'
+      fullPath: '/api/accounts'
+      preLoaderRoute: typeof ApiAccountsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v1/chat/completions': {
+      id: '/v1/chat/completions'
+      path: '/v1/chat/completions'
+      fullPath: '/v1/chat/completions'
+      preLoaderRoute: typeof V1ChatCompletionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/backend-api/codex/responses': {
+      id: '/backend-api/codex/responses'
+      path: '/backend-api/codex/responses'
+      fullPath: '/backend-api/codex/responses'
+      preLoaderRoute: typeof BackendApiCodexResponsesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/backend-api/codex/models': {
+      id: '/backend-api/codex/models'
+      path: '/backend-api/codex/models'
+      fullPath: '/backend-api/codex/models'
+      preLoaderRoute: typeof BackendApiCodexModelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/providers/openrouter': {
+      id: '/api/providers/openrouter'
+      path: '/api/providers/openrouter'
+      fullPath: '/api/providers/openrouter'
+      preLoaderRoute: typeof ApiProvidersOpenrouterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/oauth/status': {
+      id: '/api/oauth/status'
+      path: '/api/oauth/status'
+      fullPath: '/api/oauth/status'
+      preLoaderRoute: typeof ApiOauthStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/oauth/start': {
+      id: '/api/oauth/start'
+      path: '/api/oauth/start'
+      fullPath: '/api/oauth/start'
+      preLoaderRoute: typeof ApiOauthStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/oauth/manual-callback': {
+      id: '/api/oauth/manual-callback'
+      path: '/api/oauth/manual-callback'
+      fullPath: '/api/oauth/manual-callback'
+      preLoaderRoute: typeof ApiOauthManualCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/oauth/complete': {
+      id: '/api/oauth/complete'
+      path: '/api/oauth/complete'
+      fullPath: '/api/oauth/complete'
+      preLoaderRoute: typeof ApiOauthCompleteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/codex/model-catalog': {
+      id: '/api/codex/model-catalog'
+      path: '/api/codex/model-catalog'
+      fullPath: '/api/codex/model-catalog'
+      preLoaderRoute: typeof ApiCodexModelCatalogRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -53,14 +398,31 @@ declare module "@tanstack/react-router" {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  HealthRoute: HealthRoute,
+  ApiAccountsRoute: ApiAccountsRoute,
+  ApiModelsRoute: ApiModelsRoute,
+  AuthCallbackRoute: AuthCallbackRoute,
+  V1ModelsRoute: V1ModelsRoute,
+  V1ResponsesRoute: V1ResponsesRoute,
+  ModelsIndexRoute: ModelsIndexRoute,
+  ProvidersIndexRoute: ProvidersIndexRoute,
+  ApiCodexModelCatalogRoute: ApiCodexModelCatalogRoute,
+  ApiOauthCompleteRoute: ApiOauthCompleteRoute,
+  ApiOauthManualCallbackRoute: ApiOauthManualCallbackRoute,
+  ApiOauthStartRoute: ApiOauthStartRoute,
+  ApiOauthStatusRoute: ApiOauthStatusRoute,
+  ApiProvidersOpenrouterRoute: ApiProvidersOpenrouterRoute,
+  BackendApiCodexModelsRoute: BackendApiCodexModelsRoute,
+  BackendApiCodexResponsesRoute: BackendApiCodexResponsesRoute,
+  V1ChatCompletionsRoute: V1ChatCompletionsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
 
-import type { getRouter } from "./router.tsx"
-import type { createStart } from "@tanstack/react-start"
-declare module "@tanstack/react-start" {
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
   interface Register {
     ssr: true
     router: Awaited<ReturnType<typeof getRouter>>
