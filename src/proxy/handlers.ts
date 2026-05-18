@@ -186,10 +186,6 @@ export async function getEnabledModels() {
       return openRouterSettingToManagedModel({
         ...model,
         supportedParameters,
-        supportsReasoning:
-          model.supportsReasoning ??
-          (supportedParameters.includes("reasoning") ||
-            supportedParameters.includes("reasoning_effort")),
       })
     })
 

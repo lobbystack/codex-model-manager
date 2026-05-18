@@ -2,21 +2,23 @@ import { publicModelId } from "./model-registry"
 import type { ManagedModel } from "./model-registry"
 
 function reasoningLevels(model: ManagedModel) {
-  if (!model.supportsReasoning) {
+  if (model.reasoningCapability?.kind !== "effort") {
     return []
   }
 
-  return [
-    { effort: "low", description: "Faster responses with lighter reasoning." },
-    {
-      effort: "medium",
-      description: "Balanced reasoning for everyday coding.",
-    },
-    {
-      effort: "high",
-      description: "More thorough reasoning for complex tasks.",
-    },
-  ]
+  return model.reasoningCapability.levels.map((effort) => ({
+    effort,
+    description:
+      effort === "low"
+        ? "Faster responses with lighter reasoning."
+        : effort === "high"
+          ? "More thorough reasoning for complex tasks."
+          : "Balanced reasoning for everyday coding.",
+  }))
+}
+
+function defaultReasoningLevel(model: ManagedModel) {
+  return model.reasoningCapability?.kind === "effort" ? "medium" : null
 }
 
 function shellType(_model: ManagedModel) {
@@ -37,7 +39,7 @@ export function toCodexModelCatalog(models: Array<ManagedModel>) {
           model.provider === "openrouter"
             ? `OpenRouter model routed through Codex Model Manager (${model.upstreamModel}).`
             : "OpenAI/Codex model routed through Codex Model Manager.",
-        default_reasoning_level: model.supportsReasoning ? "medium" : null,
+        default_reasoning_level: defaultReasoningLevel(model),
         supported_reasoning_levels: reasoningLevels(model),
         shell_type: shellType(model),
         visibility: "list",

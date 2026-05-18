@@ -1,7 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router"
 
 import { apiJson, apiOptions, readJson } from "@/server/api/json"
-import { managedModels } from "@/proxy/model-registry"
+import {
+  inferOpenRouterReasoningCapability,
+  managedModels,
+} from "@/proxy/model-registry"
 import { getEnabledModels } from "@/proxy/handlers"
 import {
   getOpenRouterKey,
@@ -59,6 +62,10 @@ function toManagedOpenRouterModel(
   const providerSlug = model.id.split("/")[0] || "openrouter"
   const setting = settingsById.get(id)
   const supportedParameters = model.supported_parameters || setting?.supportedParameters || []
+  const reasoningCapability = inferOpenRouterReasoningCapability(
+    id,
+    supportedParameters
+  )
 
   return {
     id,
@@ -72,10 +79,9 @@ function toManagedOpenRouterModel(
     supportsResponses: false,
     supportsChatCompletions: true,
     supportsReasoning:
-      setting?.supportsReasoning ??
-      (supportedParameters.includes("reasoning") ||
-        supportedParameters.includes("reasoning_effort")),
+      setting?.supportsReasoning ?? reasoningCapability.kind !== "none",
     supportedParameters,
+    reasoningCapability,
     contextWindow: model.context_length || 0,
     outputLimit: model.top_provider?.max_completion_tokens || 0,
   }

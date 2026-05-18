@@ -10,10 +10,20 @@ export type ManagedModel = {
   supportsChatCompletions: boolean
   supportsReasoning: boolean
   supportedParameters?: Array<string>
+  reasoningCapability?: ReasoningCapability
   contextWindow: number
   outputLimit: number
   codexModelInfo?: CodexModelInfo
 }
+
+export type ReasoningEffortLevel = "minimal" | "low" | "medium" | "high" | "xhigh"
+
+export type ReasoningCapability =
+  | { kind: "none" }
+  | { kind: "tokens" }
+  | { kind: "binary"; enabledByDefault: boolean }
+  | { kind: "budget" }
+  | { kind: "effort"; levels: Array<ReasoningEffortLevel> }
 
 export type CodexReasoningLevel = {
   effort: string
@@ -66,6 +76,65 @@ export type OpenRouterModelSetting = {
   outputLimit: number
 }
 
+const DEFAULT_EFFORT_LEVELS: Array<ReasoningEffortLevel> = [
+  "low",
+  "medium",
+  "high",
+]
+
+function hasReasoningParameter(supportedParameters: Array<string>) {
+  return (
+    supportedParameters.includes("reasoning") ||
+    supportedParameters.includes("include_reasoning") ||
+    supportedParameters.includes("reasoning_effort")
+  )
+}
+
+export function inferOpenRouterReasoningCapability(
+  modelId: string,
+  supportedParameters: Array<string> = []
+): ReasoningCapability {
+  const upstreamModel = modelId.replace(/^openrouter\//, "")
+
+  if (
+    upstreamModel === "moonshotai/kimi-k2.6" ||
+    upstreamModel === "moonshotai/kimi-k2.5" ||
+    upstreamModel.startsWith("moonshotai/kimi-k2-thinking")
+  ) {
+    return { kind: "binary", enabledByDefault: true }
+  }
+
+  if (upstreamModel.startsWith("google/gemini-3")) {
+    return { kind: "effort", levels: DEFAULT_EFFORT_LEVELS }
+  }
+
+  if (
+    upstreamModel.startsWith("openai/o") ||
+    upstreamModel.startsWith("openai/gpt-5") ||
+    upstreamModel.startsWith("x-ai/grok")
+  ) {
+    return hasReasoningParameter(supportedParameters)
+      ? { kind: "effort", levels: DEFAULT_EFFORT_LEVELS }
+      : { kind: "none" }
+  }
+
+  if (upstreamModel.startsWith("anthropic/claude")) {
+    return hasReasoningParameter(supportedParameters)
+      ? { kind: "budget" }
+      : { kind: "none" }
+  }
+
+  if (hasReasoningParameter(supportedParameters)) {
+    return { kind: "tokens" }
+  }
+
+  return { kind: "none" }
+}
+
+function supportsReasoning(capability: ReasoningCapability) {
+  return capability.kind !== "none"
+}
+
 export const managedModels: Array<ManagedModel> = [
   {
     id: "gpt-5.3-codex",
@@ -76,6 +145,7 @@ export const managedModels: Array<ManagedModel> = [
     supportsResponses: true,
     supportsChatCompletions: false,
     supportsReasoning: true,
+    reasoningCapability: { kind: "effort", levels: DEFAULT_EFFORT_LEVELS },
     contextWindow: 272000,
     outputLimit: 65536,
   },
@@ -88,6 +158,7 @@ export const managedModels: Array<ManagedModel> = [
     supportsResponses: true,
     supportsChatCompletions: false,
     supportsReasoning: true,
+    reasoningCapability: { kind: "effort", levels: DEFAULT_EFFORT_LEVELS },
     contextWindow: 128000,
     outputLimit: 65536,
   },
@@ -141,6 +212,10 @@ export function openRouterSettingToManagedModel(
   model: OpenRouterModelSetting
 ): ManagedModel {
   const supportedParameters = model.supportedParameters || []
+  const reasoningCapability = inferOpenRouterReasoningCapability(
+    model.id,
+    supportedParameters
+  )
 
   return {
     id: model.id,
@@ -151,10 +226,9 @@ export function openRouterSettingToManagedModel(
     supportsResponses: true,
     supportsChatCompletions: true,
     supportsReasoning:
-      model.supportsReasoning ??
-      (supportedParameters.includes("reasoning") ||
-        supportedParameters.includes("reasoning_effort")),
+      model.supportsReasoning ?? supportsReasoning(reasoningCapability),
     supportedParameters,
+    reasoningCapability,
     contextWindow: model.contextWindow,
     outputLimit: model.outputLimit,
   }
@@ -173,6 +247,10 @@ export function codexModelInfoToManagedModel(model: CodexModelInfo): ManagedMode
     supportsResponses: true,
     supportsChatCompletions: false,
     supportsReasoning: supportedReasoningLevels.length > 0,
+    reasoningCapability:
+      supportedReasoningLevels.length > 0
+        ? { kind: "effort", levels: DEFAULT_EFFORT_LEVELS }
+        : { kind: "none" },
     contextWindow,
     outputLimit: 0,
     codexModelInfo: model,

@@ -309,7 +309,7 @@ function buildOpenRouterChatBody(input: UpstreamRequest, stream: boolean) {
 
   const effort = reasoningEffort(input.body)
 
-  if (effort) {
+  if (effort && input.model.reasoningCapability?.kind === "effort") {
     if (input.model.supportedParameters?.includes("reasoning_effort")) {
       chatBody.reasoning_effort = effort
     } else if (input.model.supportedParameters?.includes("reasoning")) {
