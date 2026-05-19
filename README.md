@@ -5,7 +5,7 @@
 <h1 align="center">Codex Model Manager</h1>
 
 <p align="center">
-  A local model proxy and browser dashboard for Codex, OpenCode, ChatGPT, OpenRouter, and OpenAI-compatible workflows.
+  Load balancer for ChatGPT accounts that allow you to have different models from providers such as OpenRouter, Ollama CLoud and OpenCode Zen alongside you ChatGPT accounts.
 </p>
 
 <p align="center">
@@ -19,15 +19,10 @@
   <img alt="Platforms" src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-2563eb" />
 </p>
 
-Codex Model Manager gives local AI developers a single control surface for model
-routing, provider keys, Codex config, usage, and cost visibility. It runs on your
-laptop as a browser app at `http://localhost:1455` and exposes OpenAI-compatible
-proxy endpoints for tools that expect `/v1/models`, `/v1/responses`, or
-`/v1/chat/completions`.
+Codex Model Manager gives you a single control surface for model
+routing, provider keys, Codex config, usage, and cost visibility. It is inspired by Codex-lb with the additional capability of having other providers than OpenAI.
 
-If you switch between ChatGPT account models, OpenRouter models, OpenCode Zen,
-and local Codex configuration, this is the small dashboard that keeps the moving
-parts visible.
+If you find yourself changing you config.toml file again and again, or having to switch between Codex and OpenCode or Claude Code, this is for you.
 
 ## Preview
 
