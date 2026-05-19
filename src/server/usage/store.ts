@@ -162,6 +162,28 @@ function estimatedCostForSummary(log: UsageLogEntry) {
   )
 }
 
+export async function getUsageLogs(
+  range: UsageSummary["range"] = "today",
+  limit = 25,
+  offset = 0
+): Promise<{ logs: Array<UsageLogEntry>; total: number }> {
+  const store = await readStore()
+  const start = startForRange(range)
+  const logs = start
+    ? store.requestLogs.filter((log) => new Date(log.requestedAt) >= start)
+    : store.requestLogs
+
+  const sortedLogs = [...logs].sort(
+    (a, b) =>
+      new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime()
+  )
+
+  return {
+    logs: sortedLogs.slice(offset, offset + limit),
+    total: sortedLogs.length,
+  }
+}
+
 export async function getUsageSummary(
   range: UsageSummary["range"] = "today"
 ): Promise<UsageSummary> {

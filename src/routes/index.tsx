@@ -10,14 +10,14 @@ import { useEffect, useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { Switch } from "@/components/ui/switch"
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination"
 import {
   Table,
   TableBody,
@@ -26,9 +26,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { managedModels } from "@/proxy/model-registry"
 
 export const Route = createFileRoute("/")({ component: App })
+
+const requestLogPageSize = 25
 
 type UsageSummary = {
   requests: number
@@ -56,6 +57,25 @@ type InstallConfigResponse = {
   }
 }
 
+type RequestLog = {
+  id: string
+  requestedAt: string
+  provider: string
+  model: string
+  status: "success" | "error"
+  statusCode: number
+  errorCode: string | null
+  errorMessage: string | null
+  inputTokens: number
+  outputTokens: number
+  estimatedCostUsd: number
+}
+
+type RequestLogsResponse = {
+  logs: Array<RequestLog>
+  total: number
+}
+
 function formatNumber(value: number) {
   return new Intl.NumberFormat("en", { maximumFractionDigits: 0 }).format(value)
 }
@@ -75,8 +95,25 @@ function formatPercent(value: number) {
   }).format(value)
 }
 
+function formatLogTime(value: string) {
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return "Unknown"
+  }
+
+  return new Intl.DateTimeFormat("en", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(date)
+}
+
 function App() {
   const [usage, setUsage] = useState<UsageSummary>(emptyUsage)
+  const [requestLogs, setRequestLogs] = useState<Array<RequestLog>>([])
+  const [requestLogTotal, setRequestLogTotal] = useState(0)
+  const [requestLogPage, setRequestLogPage] = useState(0)
   const [installStatus, setInstallStatus] = useState<
     "idle" | "installing" | "installed" | "error"
   >("idle")
@@ -93,6 +130,23 @@ function App() {
 
     void loadUsage()
   }, [])
+
+  useEffect(() => {
+    async function loadRequestLogs() {
+      const offset = requestLogPage * requestLogPageSize
+      const response = await fetch(
+        `/api/usage/logs?range=today&limit=${requestLogPageSize}&offset=${offset}`
+      )
+
+      if (response.ok) {
+        const data = (await response.json()) as RequestLogsResponse
+        setRequestLogs(data.logs)
+        setRequestLogTotal(data.total)
+      }
+    }
+
+    void loadRequestLogs()
+  }, [requestLogPage])
 
   useEffect(() => {
     async function loadInstallStatus() {
@@ -172,6 +226,12 @@ function App() {
       icon: AlertTriangle,
     },
   ]
+  const requestLogPageCount = Math.max(
+    1,
+    Math.ceil(requestLogTotal / requestLogPageSize)
+  )
+  const hasPreviousRequestLogs = requestLogPage > 0
+  const hasNextRequestLogs = requestLogPage + 1 < requestLogPageCount
 
   return (
     <>
@@ -229,73 +289,121 @@ function App() {
           })}
         </div>
 
-        <Card className="col-span-full">
-          <CardHeader className="flex flex-row items-center">
-            <div className="grid gap-2">
-              <CardTitle>Managed Models</CardTitle>
-              <CardDescription>
-                Configure which models are exposed to the Codex CLI.
-              </CardDescription>
-            </div>
-            <Button size="sm" className="ml-auto gap-1">
-              Add Model
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
+        <section className="col-span-full flex flex-col gap-3">
+          <div>
+            <h2 className="text-xl font-semibold">Request logs</h2>
+            <p className="text-sm text-muted-foreground">
+              Recent proxied requests from today.
+            </p>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Time</TableHead>
+                <TableHead>Provider</TableHead>
+                <TableHead>Model</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Tokens</TableHead>
+                <TableHead className="text-right">Cost</TableHead>
+                <TableHead>Error</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {requestLogs.length > 0 ? (
+                requestLogs.map((log) => {
+                  const tokens = log.inputTokens + log.outputTokens
+
+                  return (
+                    <TableRow key={log.id}>
+                      <TableCell className="font-mono text-xs">
+                        {formatLogTime(log.requestedAt)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className="font-mono text-[10px]"
+                        >
+                          {log.provider}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="max-w-80 truncate font-mono text-xs">
+                        {log.model}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            log.status === "error" ? "destructive" : "secondary"
+                          }
+                        >
+                          {log.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs">
+                        {formatNumber(tokens)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs">
+                        {formatUsd(log.estimatedCostUsd)}
+                      </TableCell>
+                      <TableCell className="max-w-72 truncate text-muted-foreground">
+                        {log.errorMessage || log.errorCode || "-"}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              ) : (
                 <TableRow>
-                  <TableHead>Model</TableHead>
-                  <TableHead>Provider</TableHead>
-                  <TableHead className="hidden md:table-cell">
-                    Capabilities
-                  </TableHead>
-                  <TableHead className="text-right">Status</TableHead>
+                  <TableCell
+                    colSpan={7}
+                    className="h-24 text-center text-muted-foreground"
+                  >
+                    No requests logged today.
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {managedModels.map((model) => (
-                  <TableRow key={model.id}>
-                    <TableCell>
-                      <div className="font-medium">{model.displayName}</div>
-                      <div className="hidden font-mono text-xs text-muted-foreground md:inline">
-                        {model.id}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className="font-mono text-[10px]"
-                      >
-                        {model.provider}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <div className="flex gap-1">
-                        {model.supportsResponses && (
-                          <Badge variant="secondary" className="text-[10px]">
-                            Responses
-                          </Badge>
-                        )}
-                        {model.supportsChatCompletions && (
-                          <Badge variant="secondary" className="text-[10px]">
-                            Chat
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Switch
-                        checked={model.enabled}
-                        aria-label="Toggle model status"
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+              )}
+            </TableBody>
+          </Table>
+          {requestLogTotal > requestLogPageSize && (
+            <Pagination className="justify-end">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    href="#"
+                    aria-disabled={!hasPreviousRequestLogs}
+                    className={
+                      !hasPreviousRequestLogs
+                        ? "pointer-events-none opacity-50"
+                        : undefined
+                    }
+                    onClick={(event) => {
+                      event.preventDefault()
+                      setRequestLogPage((page) => Math.max(0, page - 1))
+                    }}
+                  />
+                </PaginationItem>
+                <PaginationItem className="px-2 text-sm text-muted-foreground">
+                  Page {requestLogPage + 1} of {requestLogPageCount}
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationNext
+                    href="#"
+                    aria-disabled={!hasNextRequestLogs}
+                    className={
+                      !hasNextRequestLogs
+                        ? "pointer-events-none opacity-50"
+                        : undefined
+                    }
+                    onClick={(event) => {
+                      event.preventDefault()
+                      setRequestLogPage((page) =>
+                        Math.min(requestLogPageCount - 1, page + 1)
+                      )
+                    }}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
+        </section>
       </main>
     </>
   )

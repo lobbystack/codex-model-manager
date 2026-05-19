@@ -22,6 +22,7 @@ import { Route as ApiAccountsRouteImport } from './routes/api/accounts'
 import { Route as V1ChatCompletionsRouteImport } from './routes/v1/chat/completions'
 import { Route as BackendApiCodexResponsesRouteImport } from './routes/backend-api/codex/responses'
 import { Route as BackendApiCodexModelsRouteImport } from './routes/backend-api/codex/models'
+import { Route as ApiUsageLogsRouteImport } from './routes/api/usage/logs'
 import { Route as ApiSystemVersionRouteImport } from './routes/api/system/version'
 import { Route as ApiSystemOpenRouteImport } from './routes/api/system/open'
 import { Route as ApiProvidersOpenrouterRouteImport } from './routes/api/providers/openrouter'
@@ -113,6 +114,11 @@ const BackendApiCodexModelsRoute = BackendApiCodexModelsRouteImport.update({
   id: '/backend-api/codex/models',
   path: '/backend-api/codex/models',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ApiUsageLogsRoute = ApiUsageLogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
+  getParentRoute: () => ApiUsageRoute,
 } as any)
 const ApiSystemVersionRoute = ApiSystemVersionRouteImport.update({
   id: '/api/system/version',
@@ -255,7 +261,7 @@ export interface FileRoutesByFullPath {
   '/health': typeof HealthRoute
   '/api/accounts': typeof ApiAccountsRoute
   '/api/models': typeof ApiModelsRoute
-  '/api/usage': typeof ApiUsageRoute
+  '/api/usage': typeof ApiUsageRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/v1/models': typeof V1ModelsRoute
   '/v1/responses': typeof V1ResponsesRoute
@@ -274,6 +280,7 @@ export interface FileRoutesByFullPath {
   '/api/providers/openrouter': typeof ApiProvidersOpenrouterRoute
   '/api/system/open': typeof ApiSystemOpenRoute
   '/api/system/version': typeof ApiSystemVersionRoute
+  '/api/usage/logs': typeof ApiUsageLogsRoute
   '/backend-api/codex/models': typeof BackendApiCodexModelsRoute
   '/backend-api/codex/responses': typeof BackendApiCodexResponsesRouteWithChildren
   '/v1/chat/completions': typeof V1ChatCompletionsRoute
@@ -295,7 +302,7 @@ export interface FileRoutesByTo {
   '/health': typeof HealthRoute
   '/api/accounts': typeof ApiAccountsRoute
   '/api/models': typeof ApiModelsRoute
-  '/api/usage': typeof ApiUsageRoute
+  '/api/usage': typeof ApiUsageRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/v1/models': typeof V1ModelsRoute
   '/v1/responses': typeof V1ResponsesRoute
@@ -314,6 +321,7 @@ export interface FileRoutesByTo {
   '/api/providers/openrouter': typeof ApiProvidersOpenrouterRoute
   '/api/system/open': typeof ApiSystemOpenRoute
   '/api/system/version': typeof ApiSystemVersionRoute
+  '/api/usage/logs': typeof ApiUsageLogsRoute
   '/backend-api/codex/models': typeof BackendApiCodexModelsRoute
   '/backend-api/codex/responses': typeof BackendApiCodexResponsesRouteWithChildren
   '/v1/chat/completions': typeof V1ChatCompletionsRoute
@@ -336,7 +344,7 @@ export interface FileRoutesById {
   '/health': typeof HealthRoute
   '/api/accounts': typeof ApiAccountsRoute
   '/api/models': typeof ApiModelsRoute
-  '/api/usage': typeof ApiUsageRoute
+  '/api/usage': typeof ApiUsageRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/v1/models': typeof V1ModelsRoute
   '/v1/responses': typeof V1ResponsesRoute
@@ -355,6 +363,7 @@ export interface FileRoutesById {
   '/api/providers/openrouter': typeof ApiProvidersOpenrouterRoute
   '/api/system/open': typeof ApiSystemOpenRoute
   '/api/system/version': typeof ApiSystemVersionRoute
+  '/api/usage/logs': typeof ApiUsageLogsRoute
   '/backend-api/codex/models': typeof BackendApiCodexModelsRoute
   '/backend-api/codex/responses': typeof BackendApiCodexResponsesRouteWithChildren
   '/v1/chat/completions': typeof V1ChatCompletionsRoute
@@ -397,6 +406,7 @@ export interface FileRouteTypes {
     | '/api/providers/openrouter'
     | '/api/system/open'
     | '/api/system/version'
+    | '/api/usage/logs'
     | '/backend-api/codex/models'
     | '/backend-api/codex/responses'
     | '/v1/chat/completions'
@@ -437,6 +447,7 @@ export interface FileRouteTypes {
     | '/api/providers/openrouter'
     | '/api/system/open'
     | '/api/system/version'
+    | '/api/usage/logs'
     | '/backend-api/codex/models'
     | '/backend-api/codex/responses'
     | '/v1/chat/completions'
@@ -477,6 +488,7 @@ export interface FileRouteTypes {
     | '/api/providers/openrouter'
     | '/api/system/open'
     | '/api/system/version'
+    | '/api/usage/logs'
     | '/backend-api/codex/models'
     | '/backend-api/codex/responses'
     | '/v1/chat/completions'
@@ -499,7 +511,7 @@ export interface RootRouteChildren {
   HealthRoute: typeof HealthRoute
   ApiAccountsRoute: typeof ApiAccountsRoute
   ApiModelsRoute: typeof ApiModelsRoute
-  ApiUsageRoute: typeof ApiUsageRoute
+  ApiUsageRoute: typeof ApiUsageRouteWithChildren
   AuthCallbackRoute: typeof AuthCallbackRoute
   V1ModelsRoute: typeof V1ModelsRoute
   V1ResponsesRoute: typeof V1ResponsesRoute
@@ -626,6 +638,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/backend-api/codex/models'
       preLoaderRoute: typeof BackendApiCodexModelsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/usage/logs': {
+      id: '/api/usage/logs'
+      path: '/logs'
+      fullPath: '/api/usage/logs'
+      preLoaderRoute: typeof ApiUsageLogsRouteImport
+      parentRoute: typeof ApiUsageRoute
     }
     '/api/system/version': {
       id: '/api/system/version'
@@ -805,6 +824,18 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ApiUsageRouteChildren {
+  ApiUsageLogsRoute: typeof ApiUsageLogsRoute
+}
+
+const ApiUsageRouteChildren: ApiUsageRouteChildren = {
+  ApiUsageLogsRoute: ApiUsageLogsRoute,
+}
+
+const ApiUsageRouteWithChildren = ApiUsageRoute._addFileChildren(
+  ApiUsageRouteChildren,
+)
+
 interface BackendApiCodexResponsesRouteChildren {
   BackendApiCodexResponsesCompactRoute: typeof BackendApiCodexResponsesCompactRoute
 }
@@ -824,7 +855,7 @@ const rootRouteChildren: RootRouteChildren = {
   HealthRoute: HealthRoute,
   ApiAccountsRoute: ApiAccountsRoute,
   ApiModelsRoute: ApiModelsRoute,
-  ApiUsageRoute: ApiUsageRoute,
+  ApiUsageRoute: ApiUsageRouteWithChildren,
   AuthCallbackRoute: AuthCallbackRoute,
   V1ModelsRoute: V1ModelsRoute,
   V1ResponsesRoute: V1ResponsesRoute,
