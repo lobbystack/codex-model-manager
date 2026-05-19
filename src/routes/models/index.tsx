@@ -304,19 +304,6 @@ function ModelsPage() {
           {/* Main Content Area */}
           <div className="flex-1 overflow-auto py-6 md:px-10 lg:px-12">
             <section className="mx-auto max-w-5xl space-y-6">
-              <div className="space-y-1">
-                <h2 className="text-lg font-semibold tracking-tight">Models</h2>
-                <p className="text-sm text-muted-foreground">
-                  Manage which models workspace members can access.{" "}
-                  <a
-                    href="#"
-                    className="underline decoration-muted-foreground/50 underline-offset-4 transition-colors hover:text-foreground"
-                  >
-                    Learn more.
-                  </a>
-                </p>
-              </div>
-
               {/* Search */}
               <div className="relative max-w-sm">
                 <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground/70" />
