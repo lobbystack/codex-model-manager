@@ -3,10 +3,8 @@ import {
   AlertTriangle,
   Check,
   CircleDollarSign,
-  Download,
   Hash,
   ReceiptText,
-  RefreshCw,
 } from "lucide-react"
 import { useEffect, useState } from "react"
 
@@ -58,37 +56,6 @@ type InstallConfigResponse = {
   }
 }
 
-type SystemVersionResponse = {
-  ok: boolean
-  version: string
-  platform: string
-  arch: string
-  releaseMode: boolean
-  updateConfigured: boolean
-}
-
-type UpdateCheckResponse = {
-  ok: boolean
-  currentVersion?: string
-  latestVersion?: string
-  updateAvailable: boolean
-  supported?: boolean
-  notes?: string | null
-  error?: {
-    message?: string
-  }
-}
-
-type ApplyUpdateResponse = {
-  ok: boolean
-  changed?: boolean
-  version?: string
-  restartScheduled?: boolean
-  error?: {
-    message?: string
-  }
-}
-
 function formatNumber(value: number) {
   return new Intl.NumberFormat("en", { maximumFractionDigits: 0 }).format(value)
 }
@@ -114,13 +81,6 @@ function App() {
     "idle" | "installing" | "installed" | "error"
   >("idle")
   const [installMessage, setInstallMessage] = useState<string | null>(null)
-  const [systemVersion, setSystemVersion] =
-    useState<SystemVersionResponse | null>(null)
-  const [updateStatus, setUpdateStatus] = useState<
-    "idle" | "checking" | "available" | "current" | "applying" | "restarting" | "error"
-  >("idle")
-  const [updateInfo, setUpdateInfo] = useState<UpdateCheckResponse | null>(null)
-  const [updateMessage, setUpdateMessage] = useState<string | null>(null)
 
   useEffect(() => {
     async function loadUsage() {
@@ -156,56 +116,6 @@ function App() {
     void loadInstallStatus()
   }, [])
 
-  const checkForUpdates = async () => {
-    setUpdateStatus("checking")
-    setUpdateMessage(null)
-
-    try {
-      const response = await fetch("/api/system/update/check")
-      const data = (await response.json()) as UpdateCheckResponse
-
-      if (!response.ok || !data.ok) {
-        throw new Error(data.error?.message || "Unable to check for updates.")
-      }
-
-      setUpdateInfo(data)
-      setUpdateStatus(data.updateAvailable ? "available" : "current")
-      setUpdateMessage(
-        data.updateAvailable
-          ? `Version ${data.latestVersion} is ready.`
-          : "You are on the latest version."
-      )
-    } catch (error) {
-      setUpdateStatus("error")
-      setUpdateMessage(
-        error instanceof Error ? error.message : "Unable to check for updates."
-      )
-    }
-  }
-
-  useEffect(() => {
-    async function loadSystemVersion() {
-      try {
-        const response = await fetch("/api/system/version")
-        const data = (await response.json()) as SystemVersionResponse
-
-        if (!response.ok || !data.ok) {
-          return
-        }
-
-        setSystemVersion(data)
-
-        if (data.updateConfigured) {
-          void checkForUpdates()
-        }
-      } catch {
-        // The dashboard still works if local system metadata is unavailable.
-      }
-    }
-
-    void loadSystemVersion()
-  }, [])
-
   const installConfig = async () => {
     setInstallStatus("installing")
     setInstallMessage(null)
@@ -226,36 +136,6 @@ function App() {
       setInstallStatus("error")
       setInstallMessage(
         error instanceof Error ? error.message : "Unable to install config."
-      )
-    }
-  }
-
-  const applyUpdate = async () => {
-    setUpdateStatus("applying")
-    setUpdateMessage(null)
-
-    try {
-      const response = await fetch("/api/system/update/apply", {
-        method: "POST",
-      })
-      const data = (await response.json()) as ApplyUpdateResponse
-
-      if (!response.ok || !data.ok) {
-        throw new Error(data.error?.message || "Unable to apply update.")
-      }
-
-      setUpdateStatus(data.restartScheduled ? "restarting" : "current")
-      setUpdateMessage(
-        data.restartScheduled
-          ? "Update installed. The local service is restarting."
-          : data.changed
-            ? `Updated to ${data.version}.`
-            : "Already on the latest version."
-      )
-    } catch (error) {
-      setUpdateStatus("error")
-      setUpdateMessage(
-        error instanceof Error ? error.message : "Unable to apply update."
       )
     }
   }
@@ -314,23 +194,21 @@ function App() {
             title={installMessage || undefined}
             onClick={() => void installConfig()}
           >
-            {installStatus === "installing"
-              ? "Installing..."
-              : installStatus === "installed"
-                ? (
-                    <>
-                      <Check className="size-3.5" />
-                      Config installed
-                    </>
-                  )
-                : "Install config"}
+            {installStatus === "installing" ? (
+              "Installing..."
+            ) : installStatus === "installed" ? (
+              <>
+                <Check className="size-3.5" />
+                Config installed
+              </>
+            ) : (
+              "Install config"
+            )}
           </Button>
         </div>
       </header>
       <main className="grid w-full flex-1 grid-cols-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
-        <div
-          className="col-span-full grid w-full gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-5"
-        >
+        <div className="col-span-full grid w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
           {metricCards.map((metric) => {
             const Icon = metric.icon
 
@@ -350,86 +228,6 @@ function App() {
             )
           })}
         </div>
-
-        <Card className="col-span-full">
-          <CardHeader className="flex flex-row items-center gap-4">
-            <div className="grid gap-2">
-              <CardTitle>Distribution</CardTitle>
-              <CardDescription>
-                Local browser app runtime and prompted updates.
-              </CardDescription>
-            </div>
-            <div className="ml-auto flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={
-                  !systemVersion?.updateConfigured ||
-                  updateStatus === "checking" ||
-                  updateStatus === "applying" ||
-                  updateStatus === "restarting"
-                }
-                onClick={() => void checkForUpdates()}
-              >
-                <RefreshCw className="size-3.5" />
-                Check
-              </Button>
-              <Button
-                size="sm"
-                disabled={
-                  updateStatus !== "available" ||
-                  updateInfo?.supported === false
-                }
-                onClick={() => void applyUpdate()}
-              >
-                <Download className="size-3.5" />
-                Update
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="grid gap-3 text-sm sm:grid-cols-3">
-            <div>
-              <div className="text-xs text-muted-foreground">Version</div>
-              <div className="font-mono">
-                {systemVersion?.version || "Unknown"}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">Runtime</div>
-              <div className="font-mono">
-                {systemVersion
-                  ? `${systemVersion.platform}/${systemVersion.arch}`
-                  : "Unknown"}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">Updates</div>
-              <div className="flex items-center gap-2">
-                <Badge
-                  variant={
-                    updateStatus === "available" ? "default" : "secondary"
-                  }
-                >
-                  {systemVersion?.updateConfigured
-                    ? updateStatus === "idle"
-                      ? "Configured"
-                      : updateStatus
-                    : "Not configured"}
-                </Badge>
-                {updateInfo?.latestVersion && (
-                  <span className="font-mono text-xs text-muted-foreground">
-                    {updateInfo.latestVersion}
-                  </span>
-                )}
-              </div>
-              {updateMessage && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {updateMessage}
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
 
         <Card className="col-span-full">
           <CardHeader className="flex flex-row items-center">

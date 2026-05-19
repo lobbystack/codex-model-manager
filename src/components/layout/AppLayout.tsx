@@ -1,14 +1,87 @@
 import { Link, useLocation } from "@tanstack/react-router"
-import { Activity, Box, Layers, Terminal } from "lucide-react"
+import { Activity, Box, Download, Layers, Terminal } from "lucide-react"
+import { useEffect, useState } from "react"
+
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+
+type UpdateCheckResponse = {
+  ok: boolean
+  latestVersion?: string
+  updateAvailable: boolean
+  supported?: boolean
+  error?: {
+    message?: string
+  }
+}
+
+type ApplyUpdateResponse = {
+  ok: boolean
+  changed?: boolean
+  version?: string
+  restartScheduled?: boolean
+  error?: {
+    message?: string
+  }
+}
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
+  const [updateInfo, setUpdateInfo] = useState<UpdateCheckResponse | null>(null)
+  const [updateStatus, setUpdateStatus] = useState<
+    "idle" | "available" | "applying" | "restarting" | "error"
+  >("idle")
 
   const navItems = [
     { href: "/", label: "Overview", icon: Activity },
     { href: "/models", label: "Models", icon: Layers },
     { href: "/providers", label: "Providers", icon: Box },
   ]
+
+  useEffect(() => {
+    async function checkForUpdates() {
+      try {
+        const response = await fetch("/api/system/update/check")
+        const data = (await response.json()) as UpdateCheckResponse
+
+        if (!response.ok || !data.ok || !data.updateAvailable) {
+          return
+        }
+
+        setUpdateInfo(data)
+        setUpdateStatus("available")
+      } catch {
+        // Update checks should never interrupt navigation.
+      }
+    }
+
+    void checkForUpdates()
+  }, [])
+
+  const applyUpdate = async () => {
+    setUpdateStatus("applying")
+
+    try {
+      const response = await fetch("/api/system/update/apply", {
+        method: "POST",
+      })
+      const data = (await response.json()) as ApplyUpdateResponse
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error?.message || "Unable to apply update.")
+      }
+
+      setUpdateStatus(data.restartScheduled ? "restarting" : "idle")
+      setUpdateInfo(null)
+    } catch {
+      setUpdateStatus("error")
+    }
+  }
 
   return (
     <div className="flex min-h-svh w-full bg-background">
@@ -40,10 +113,38 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             })}
           </nav>
         </div>
+        {updateInfo && (
+          <div className="p-4">
+            <Alert>
+              <Download />
+              <AlertTitle>Update available</AlertTitle>
+              <AlertDescription>
+                {updateInfo.latestVersion
+                  ? `Version ${updateInfo.latestVersion} is ready.`
+                  : "A new version is ready."}
+              </AlertDescription>
+              <AlertAction>
+                <Button
+                  size="sm"
+                  disabled={
+                    updateInfo.supported === false ||
+                    updateStatus === "applying" ||
+                    updateStatus === "restarting"
+                  }
+                  onClick={() => void applyUpdate()}
+                >
+                  {updateStatus === "applying" ? "Updating" : "Update"}
+                </Button>
+              </AlertAction>
+            </Alert>
+          </div>
+        )}
       </aside>
 
       {/* Main Content */}
-      <div className="flex min-w-0 flex-1 flex-col sm:pl-64 w-full">{children}</div>
+      <div className="flex w-full min-w-0 flex-1 flex-col sm:pl-64">
+        {children}
+      </div>
     </div>
   )
 }
