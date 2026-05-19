@@ -271,14 +271,13 @@ function ModelsPage() {
   return (
     <>
       <header className="flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6 lg:h-[60px]">
-        <div>
-          <h1 className="text-lg font-semibold md:text-2xl">Models</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage which models appear in Codex
-          </p>
-        </div>
+        <h1 className="text-lg font-semibold md:text-2xl">Models</h1>
       </header>
       <main className="flex-1 p-4 sm:px-6 sm:py-0">
+        <p className="mb-6 text-sm text-muted-foreground">
+          Manage which models appear in Codex
+        </p>
+
         <div className="flex h-full animate-in flex-col duration-500 fade-in md:flex-row">
           {/* Left Sub-Navigation */}
           <aside className="w-full shrink-0 border-r border-border/40 py-6 pr-6 md:w-56 lg:w-64">
