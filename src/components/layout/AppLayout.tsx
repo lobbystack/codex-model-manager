@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router"
-import { Activity, Box, Download, Layers, Terminal } from "lucide-react"
+import { Activity, Box, Layers, Terminal } from "lucide-react"
 import { useEffect, useState } from "react"
 
 import {
@@ -116,11 +116,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         {updateInfo && (
           <div className="p-4">
             <Alert>
-              <Download />
               <AlertTitle>Update available</AlertTitle>
               <AlertDescription>
                 {updateInfo.latestVersion
-                  ? `Version ${updateInfo.latestVersion} is ready.`
+                  ? `Version ${updateInfo.latestVersion}`
                   : "A new version is ready."}
               </AlertDescription>
               <AlertAction>
