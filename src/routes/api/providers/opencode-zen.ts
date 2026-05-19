@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router"
 
+import { getEnabledModels } from "@/proxy/handlers"
 import {
   inferOpenCodeZenReasoningCapability,
+  openCodeZenInputModalitiesForModel,
   openCodeZenModelFamily,
 } from "@/proxy/model-registry"
-import { getEnabledModels } from "@/proxy/handlers"
 import { apiJson, apiOptions, readJson } from "@/server/api/json"
 import {
   getOpenCodeZenKey,
@@ -33,8 +34,6 @@ const defaultEnabledModelIds = new Set([
   "opencode/gemini-3.1-pro",
   "opencode/kimi-k2.6",
 ])
-
-const openCodeZenInputModalities = ["text", "image"]
 
 const contextWindows: Record<string, number | undefined> = {
   "gpt-5.5": 272000,
@@ -107,7 +106,9 @@ function providerNameForModel(id: string) {
 }
 
 function displayNameForModel(id: string) {
-  return titleCase(id).replace(/^Gpt\b/, "GPT").replace(/^Glm\b/, "GLM")
+  return titleCase(id)
+    .replace(/^Gpt\b/, "GPT")
+    .replace(/^Glm\b/, "GLM")
 }
 
 async function fetchOpenCodeZenModels() {
@@ -185,7 +186,7 @@ async function listOpenCodeZenModels() {
       supportedParameters: setting?.supportedParameters || [],
       contextWindow: setting?.contextWindow || contextWindows[model.id] || 0,
       outputLimit: setting?.outputLimit || 65536,
-      inputModalities: setting?.inputModalities || openCodeZenInputModalities,
+      inputModalities: openCodeZenInputModalitiesForModel(id),
     }
   })
 
@@ -221,7 +222,7 @@ async function persistDefaultOpenCodeZenModels() {
       supportedParameters: [],
       contextWindow: contextWindows[model.id] || 0,
       outputLimit: 65536,
-      inputModalities: openCodeZenInputModalities,
+      inputModalities: openCodeZenInputModalitiesForModel(id),
     })
   }
 }
@@ -259,11 +260,21 @@ async function updateOpenCodeZenModel(request: Request) {
   const outputLimit =
     typeof body.outputLimit === "number" ? body.outputLimit : 65536
   const supportedParameters = Array.isArray(body.supportedParameters)
-    ? body.supportedParameters.filter((parameter) => typeof parameter === "string")
+    ? body.supportedParameters.filter(
+        (parameter) => typeof parameter === "string"
+      )
+    : []
+  const allowedInputModalities = openCodeZenInputModalitiesForModel(body.id)
+  const requestedInputModalities = Array.isArray(body.inputModalities)
+    ? body.inputModalities
+        .filter((modality) => typeof modality === "string")
+        .filter((modality) => allowedInputModalities.includes(modality))
     : []
   const inputModalities = Array.isArray(body.inputModalities)
-    ? body.inputModalities.filter((modality) => typeof modality === "string")
-    : openCodeZenInputModalities
+    ? requestedInputModalities.length > 0
+      ? requestedInputModalities
+      : allowedInputModalities
+    : allowedInputModalities
   const supportsReasoning =
     typeof body.supportsReasoning === "boolean"
       ? body.supportsReasoning

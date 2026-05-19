@@ -119,6 +119,7 @@ export type OllamaCloudModelSetting = {
 
 const TEXT_MODALITIES = ["text"]
 const ZEN_INPUT_MODALITIES = ["text", "image"]
+const ZEN_VISION_MODEL_PREFIXES = ["claude-", "gemini-", "gpt-"]
 
 const DEFAULT_EFFORT_LEVELS: Array<ReasoningEffortLevel> = [
   "low",
@@ -193,6 +194,18 @@ export function openCodeZenModelFamily(
   }
 
   return "chat"
+}
+
+export function openCodeZenInputModalitiesForModel(modelId: string) {
+  const upstreamModel = modelId.replace(/^opencode\//, "")
+
+  if (
+    ZEN_VISION_MODEL_PREFIXES.some((prefix) => upstreamModel.startsWith(prefix))
+  ) {
+    return ZEN_INPUT_MODALITIES
+  }
+
+  return TEXT_MODALITIES
 }
 
 export function inferOpenCodeZenReasoningCapability(
@@ -344,7 +357,7 @@ export function openCodeZenSettingToManagedModel(
     reasoningCapability,
     contextWindow: model.contextWindow,
     outputLimit: model.outputLimit,
-    inputModalities: model.inputModalities || ZEN_INPUT_MODALITIES,
+    inputModalities: openCodeZenInputModalitiesForModel(model.id),
   }
 }
 
