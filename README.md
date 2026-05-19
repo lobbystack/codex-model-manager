@@ -5,7 +5,7 @@
 <h1 align="center">Codex Model Manager</h1>
 
 <p align="center">
-  Load balancer for ChatGPT accounts that allow you to have different models from providers such as OpenRouter, Ollama CLoud and OpenCode Zen alongside you ChatGPT accounts.
+  Load balancer for ChatGPT accounts that allow you to have different models from providers such as OpenRouter, Ollama CLoud and OpenCode Zen alongside your ChatGPT accounts.
 </p>
 
 <p align="center">
