@@ -36,6 +36,26 @@ type GeminiPart =
   | { text: string }
   | { inlineData: { mimeType: string; data: string } }
   | { fileData: { mimeType: string; fileUri: string } }
+  | { functionCall: { name: string; args: unknown } }
+  | {
+      functionResponse: {
+        name: string
+        response: Record<string, unknown>
+      }
+    }
+
+type GeminiContent = {
+  role: "user" | "model"
+  parts: Array<GeminiPart>
+}
+
+type GeminiTool = {
+  functionDeclarations: Array<{
+    name: unknown
+    description: unknown
+    parameters: unknown
+  }>
+}
 
 type AnthropicContentBlock =
   | { type: "text"; text: string }
@@ -117,6 +137,7 @@ type GeminiResponse = {
         functionCall?: { name?: string; args?: unknown }
       }>
     }
+    finishReason?: string
   }>
   usageMetadata?: {
     promptTokenCount?: number
@@ -235,6 +256,27 @@ function normalizeCodexResponsesPayload(body: Record<string, unknown>) {
   delete upstreamBody.top_p
 
   return upstreamBody
+}
+
+function normalizeCodexCompactPayload(bytes: ArrayBuffer | undefined) {
+  if (!bytes || bytes.byteLength === 0) {
+    return undefined
+  }
+
+  try {
+    const body = JSON.parse(Buffer.from(bytes).toString("utf8")) as unknown
+
+    if (!body || typeof body !== "object") {
+      return bytes
+    }
+
+    return JSON.stringify({
+      ...(body as Record<string, unknown>),
+      model: "gpt-5.5",
+    })
+  } catch {
+    return bytes
+  }
 }
 
 function codexControlResponseHeaders(headers: Headers) {
@@ -559,12 +601,17 @@ function responseCompletedEventWithUsage(
   id: string,
   model: string,
   output: Array<Record<string, unknown>>,
-  usage?: unknown
+  usage?: unknown,
+  error?: { code: string; message: string } | null
 ) {
   const event = responseCompletedEvent(id, model, output)
 
   if (usage) {
     ;(event.response as Record<string, unknown>).usage = usage
+  }
+
+  if (error) {
+    ;(event.response as Record<string, unknown>).error = error
   }
 
   return event
@@ -655,11 +702,12 @@ function responsesOutput(
   input: UpstreamRequest,
   id: string,
   output: Array<Record<string, unknown>>,
-  usage?: unknown
+  usage?: unknown,
+  error?: { code: string; message: string } | null
 ) {
   if (input.body.stream === false) {
     return json(
-      responseCompletedEventWithUsage(id, input.model.id, output, usage)
+      responseCompletedEventWithUsage(id, input.model.id, output, usage, error)
         .response
     )
   }
@@ -721,7 +769,15 @@ function responsesOutput(
         })
       })
 
-      send(responseCompletedEventWithUsage(id, input.model.id, output, usage))
+      send(
+        responseCompletedEventWithUsage(
+          id,
+          input.model.id,
+          output,
+          usage,
+          error
+        )
+      )
       controller.enqueue(encoder.encode("data: [DONE]\n\n"))
       controller.close()
     },
@@ -1477,34 +1533,144 @@ function chatContentToGeminiParts(content: ChatMessage["content"]) {
   return parts.length > 0 ? parts : [{ text: "" }]
 }
 
-function buildGeminiBody(input: UpstreamRequest) {
+function chatMessageToGeminiContent(
+  message: ChatMessage,
+  toolCallNames: Map<string, string>
+): GeminiContent {
+  if (message.tool_calls?.length) {
+    const text = message.tool_calls
+      .map((call) => {
+        toolCallNames.set(call.id, call.function.name)
+        return `Function call ${call.function.name}: ${call.function.arguments}`
+      })
+      .join("\n")
+
+    return { role: "model", parts: [{ text }] }
+  }
+
+  if (message.role === "tool") {
+    const output = contentToText(message.content)
+    const name =
+      (message.tool_call_id && toolCallNames.get(message.tool_call_id)) ||
+      "tool"
+
+    return {
+      role: "user",
+      parts: [{ text: `Function response ${name}: ${output}` }],
+    }
+  }
+
+  return {
+    role: message.role === "assistant" ? "model" : "user",
+    parts: chatContentToGeminiParts(message.content),
+  }
+}
+
+function responsesToolsToGeminiTools(tools: unknown): Array<GeminiTool> {
+  const declarations = (responsesToolsToChatTools(tools) || []).map((tool) => ({
+    name: tool.function.name,
+    description: tool.function.description || "",
+    parameters: tool.function.parameters || { type: "object", properties: {} },
+  }))
+
+  return declarations.length > 0 ? [{ functionDeclarations: declarations }] : []
+}
+
+function geminiThinkingLevel(effort: string | null) {
+  if (effort === "low" || effort === "medium" || effort === "high") {
+    return effort
+  }
+
+  if (effort === "minimal") {
+    return "low"
+  }
+
+  return null
+}
+
+export function buildGeminiBody(input: UpstreamRequest) {
   const messages = responsesInputToChatMessages(input.body)
   const system = contentToText(
     messages.find((message) => message.role === "system")?.content
   )
+  const generationConfig: Record<string, unknown> = {}
+  const toolCallNames = new Map<string, string>()
+  const tools = responsesToolsToGeminiTools(input.body.tools)
+
+  if (typeof input.body.temperature === "number") {
+    generationConfig.temperature = input.body.temperature
+  }
+
+  if (typeof input.body.max_output_tokens === "number") {
+    generationConfig.maxOutputTokens = input.body.max_output_tokens
+  }
+
+  const thinkingLevel =
+    input.model.reasoningCapability?.kind === "effort"
+      ? geminiThinkingLevel(reasoningEffort(input.body))
+      : null
+
+  if (thinkingLevel) {
+    generationConfig.thinkingConfig = { thinkingLevel }
+  }
 
   return {
     ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
     contents: messages
       .filter((message) => message.role !== "system")
-      .map((message) => ({
-        role: message.role === "assistant" ? "model" : "user",
-        parts: chatContentToGeminiParts(message.content),
-      })),
-    generationConfig: {
-      ...(typeof input.body.temperature === "number"
-        ? { temperature: input.body.temperature }
-        : {}),
-      ...(typeof input.body.max_output_tokens === "number"
-        ? { maxOutputTokens: input.body.max_output_tokens }
-        : {}),
-    },
+      .map((message) => chatMessageToGeminiContent(message, toolCallNames)),
+    ...(tools.length > 0 ? { tools } : {}),
+    generationConfig,
   }
 }
 
+function geminiParts(data: GeminiResponse) {
+  return data.candidates?.[0]?.content?.parts || []
+}
+
+function geminiText(data: GeminiResponse) {
+  return geminiParts(data)
+    .map((part) => part.text || "")
+    .filter(Boolean)
+    .join("\n")
+}
+
+function geminiFunctionCalls(data: GeminiResponse) {
+  return geminiParts(data).filter((part) => part.functionCall)
+}
+
+export function textFunctionCallOutputItem(text: string) {
+  const match =
+    /^\s*Function call\s+([A-Za-z_][\w.-]*):\s*([\s\S]+?)\s*$/i.exec(text)
+
+  if (!match) {
+    return null
+  }
+
+  const name = match[1]
+  const args = match[2].trim()
+
+  if (!args.startsWith("{") && !args.startsWith("[")) {
+    return null
+  }
+
+  return functionCallOutputItem({
+    id: functionCallId(),
+    function: { name, arguments: args },
+  })
+}
+
+function shouldHoldGeminiText(text: string) {
+  const trimmed = text.trimStart().toLowerCase()
+
+  return (
+    trimmed.length > 0 &&
+    ("function call".startsWith(trimmed) || /^function call\b/.test(trimmed))
+  )
+}
+
 function geminiOutput(data: GeminiResponse) {
-  const parts = data.candidates?.[0]?.content?.parts || []
-  const functionCalls = parts.filter((part) => part.functionCall)
+  const functionCalls = geminiFunctionCalls(data)
 
   if (functionCalls.length > 0) {
     return functionCalls.map((part) =>
@@ -1518,15 +1684,35 @@ function geminiOutput(data: GeminiResponse) {
     )
   }
 
-  return [
-    messageOutputItem(
-      outputItemId(),
-      parts
-        .map((part) => part.text || "")
-        .filter(Boolean)
-        .join("\n")
-    ),
-  ]
+  const text = geminiText(data)
+  const textFunctionCall = textFunctionCallOutputItem(text)
+
+  return textFunctionCall
+    ? [textFunctionCall]
+    : [messageOutputItem(outputItemId(), text)]
+}
+
+function geminiEmptyOutputMessage(data: GeminiResponse) {
+  const finishReason = data.candidates?.[0]?.finishReason
+
+  if (!finishReason || finishReason === "STOP") {
+    return null
+  }
+
+  if (finishReason === "MALFORMED_FUNCTION_CALL") {
+    return "OpenCode Zen Gemini returned a malformed function call. The proxy preserved the request in logs; try again or switch models if Gemini keeps producing invalid tool calls."
+  }
+
+  return `OpenCode Zen Gemini returned no text (finishReason: ${finishReason}). Try a higher max output token limit or a lower reasoning effort.`
+}
+
+function geminiEmptyOutputError(data: GeminiResponse) {
+  const finishReason = data.candidates?.[0]?.finishReason
+  const message = geminiEmptyOutputMessage(data)
+
+  return finishReason && message
+    ? { code: finishReason.toLowerCase(), message }
+    : null
 }
 
 function geminiUsageToResponseUsage(usage: GeminiResponse["usageMetadata"]) {
@@ -1550,7 +1736,293 @@ function geminiUsageToResponseUsage(usage: GeminiResponse["usageMetadata"]) {
   }
 }
 
+function isEmptyGeminiOutput(data: GeminiResponse) {
+  return geminiText(data) === "" && geminiFunctionCalls(data).length === 0
+}
+
+async function forwardOpenCodeZenGeminiStream(
+  input: UpstreamRequest,
+  key: string
+) {
+  const response = await fetch(
+    `https://opencode.ai/zen/v1/models/${input.model.upstreamModel}:streamGenerateContent?alt=sse`,
+    {
+      method: "POST",
+      headers: cloneGoogleStyleHeaders(input.request, key),
+      body: JSON.stringify(buildGeminiBody(input)),
+    }
+  )
+
+  if (!response.ok) {
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    })
+  }
+
+  if (!response.body) {
+    return json(
+      { error: { message: "OpenCode Zen Gemini returned an empty stream." } },
+      502
+    )
+  }
+
+  const id = responseId()
+  const itemId = outputItemId()
+  const encoder = new TextEncoder()
+  const decoder = new TextDecoder()
+  const reader = response.body.getReader()
+  let buffer = ""
+  let emittedMessage = false
+  let text = ""
+  let emittedText = ""
+  let usage: GeminiResponse["usageMetadata"]
+  let finishReason: string | undefined
+  const functionCalls: Array<Record<string, unknown>> = []
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (event: Record<string, unknown>) => {
+        controller.enqueue(encoder.encode(encodeSse(event)))
+      }
+      const ensureMessage = () => {
+        if (emittedMessage) {
+          return
+        }
+
+        emittedMessage = true
+        send({
+          type: "response.output_item.added",
+          output_index: 0,
+          item: {
+            id: itemId,
+            type: "message",
+            status: "in_progress",
+            role: "assistant",
+            content: [],
+          },
+        })
+        send({
+          type: "response.content_part.added",
+          item_id: itemId,
+          output_index: 0,
+          content_index: 0,
+          part: { type: "output_text", text: "", annotations: [] },
+        })
+      }
+
+      send(responseCreatedEvent(id, input.model.id))
+
+      try {
+        for (;;) {
+          const { done, value } = await reader.read()
+
+          if (done) {
+            break
+          }
+
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split(/\r?\n/)
+          buffer = lines.pop() || ""
+
+          for (const rawLine of lines) {
+            const line = rawLine.trim()
+
+            if (!line.startsWith("data:")) {
+              continue
+            }
+
+            const payload = line.slice("data:".length).trim()
+
+            if (!payload || payload === "[DONE]") {
+              continue
+            }
+
+            const chunk = JSON.parse(payload) as GeminiResponse
+            const delta = geminiText(chunk)
+
+            usage = chunk.usageMetadata || usage
+            finishReason = chunk.candidates?.[0]?.finishReason || finishReason
+
+            if (delta) {
+              const nextText = text + delta
+              text = nextText
+
+              if (shouldHoldGeminiText(nextText)) {
+                continue
+              }
+
+              const pendingDelta = nextText.slice(emittedText.length)
+
+              if (!pendingDelta) {
+                continue
+              }
+
+              ensureMessage()
+              emittedText = nextText
+              send({
+                type: "response.output_text.delta",
+                item_id: itemId,
+                output_index: 0,
+                content_index: 0,
+                delta: pendingDelta,
+              })
+            }
+
+            for (const call of geminiFunctionCalls(chunk)) {
+              functionCalls.push(
+                functionCallOutputItem({
+                  id: functionCallId(),
+                  function: {
+                    name: call.functionCall?.name || "tool",
+                    arguments: JSON.stringify(call.functionCall?.args || {}),
+                  },
+                })
+              )
+            }
+          }
+        }
+
+        const emptyOutputNotice =
+          !text && functionCalls.length === 0
+            ? geminiEmptyOutputMessage({ candidates: [{ finishReason }] })
+            : null
+        const emptyOutputError =
+          !text && functionCalls.length === 0
+            ? geminiEmptyOutputError({ candidates: [{ finishReason }] })
+            : null
+        const textFunctionCall = textFunctionCallOutputItem(text)
+        const output =
+          functionCalls.length > 0
+            ? functionCalls
+            : textFunctionCall
+              ? [textFunctionCall]
+              : [messageOutputItem(itemId, text || emptyOutputNotice || "")]
+
+        if (textFunctionCall && !emittedMessage) {
+          send({
+            type: "response.output_item.done",
+            output_index: 0,
+            item: output[0],
+          })
+        } else if (text || emptyOutputNotice) {
+          const finalText = text || emptyOutputNotice || ""
+
+          ensureMessage()
+
+          if (finalText !== emittedText) {
+            const pendingDelta = finalText.slice(emittedText.length)
+
+            if (pendingDelta) {
+              send({
+                type: "response.output_text.delta",
+                item_id: itemId,
+                output_index: 0,
+                content_index: 0,
+                delta: pendingDelta,
+              })
+            }
+          }
+
+          send({
+            type: "response.output_text.done",
+            item_id: itemId,
+            output_index: 0,
+            content_index: 0,
+            text: finalText,
+          })
+          send({
+            type: "response.content_part.done",
+            item_id: itemId,
+            output_index: 0,
+            content_index: 0,
+            part: {
+              type: "output_text",
+              text: finalText,
+              annotations: [],
+            },
+          })
+          send({
+            type: "response.output_item.done",
+            output_index: 0,
+            item: output[0],
+          })
+        } else {
+          output.forEach((item, index) => {
+            send({
+              type: "response.output_item.done",
+              output_index: index,
+              item,
+            })
+          })
+        }
+
+        send(
+          responseCompletedEventWithUsage(
+            id,
+            input.model.id,
+            output,
+            geminiUsageToResponseUsage(usage),
+            emptyOutputError
+          )
+        )
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"))
+        controller.close()
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "fetch failed"
+        const failureMessage = `OpenCode Zen Gemini stream failed: ${message}`
+        const output = [messageOutputItem(itemId, failureMessage)]
+
+        ensureMessage()
+        send({
+          type: "response.output_text.delta",
+          item_id: itemId,
+          output_index: 0,
+          content_index: 0,
+          delta: failureMessage,
+        })
+        send({
+          type: "response.output_text.done",
+          item_id: itemId,
+          output_index: 0,
+          content_index: 0,
+          text: failureMessage,
+        })
+        send({
+          type: "response.content_part.done",
+          item_id: itemId,
+          output_index: 0,
+          content_index: 0,
+          part: { type: "output_text", text: failureMessage, annotations: [] },
+        })
+        send({
+          type: "response.output_item.done",
+          output_index: 0,
+          item: output[0],
+        })
+        send(
+          responseCompletedEventWithUsage(id, input.model.id, output, usage, {
+            code: "upstream_stream_failed",
+            message: failureMessage,
+          })
+        )
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"))
+        controller.close()
+      } finally {
+        reader.releaseLock()
+      }
+    },
+  })
+
+  return new Response(stream, { headers: sseHeaders() })
+}
+
 async function forwardOpenCodeZenGemini(input: UpstreamRequest, key: string) {
+  if (input.body.stream !== false) {
+    return forwardOpenCodeZenGeminiStream(input, key)
+  }
+
   const response = await fetch(
     `https://opencode.ai/zen/v1/models/${input.model.upstreamModel}:generateContent`,
     {
@@ -1570,13 +2042,26 @@ async function forwardOpenCodeZenGemini(input: UpstreamRequest, key: string) {
 
   const data = (await response.json()) as GeminiResponse
   const id = responseId()
+  const emptyOutputNotice = isEmptyGeminiOutput(data)
+    ? geminiEmptyOutputMessage(data)
+    : null
+  const emptyOutputError = isEmptyGeminiOutput(data)
+    ? geminiEmptyOutputError(data)
+    : null
   const output = geminiOutput(data)
+
+  if (emptyOutputNotice) {
+    const itemId =
+      typeof output[0]?.id === "string" ? output[0].id : outputItemId()
+    output[0] = messageOutputItem(itemId, emptyOutputNotice)
+  }
 
   return responsesOutput(
     input,
     id,
     output,
-    geminiUsageToResponseUsage(data.usageMetadata)
+    geminiUsageToResponseUsage(data.usageMetadata),
+    emptyOutputError
   )
 }
 
@@ -1649,7 +2134,8 @@ export async function forwardResponses(input: UpstreamRequest) {
     return forwardOllamaCloudResponses(input)
   }
 
-  const accountToken = await getActiveAccessToken()
+  const account = await getActiveAccount()
+  const accountToken = account ? await getActiveAccessToken() : null
   const key = accountToken || getOpenAIKey()
 
   if (!key) {
@@ -1665,12 +2151,29 @@ export async function forwardResponses(input: UpstreamRequest) {
     )
   }
 
-  if (accountToken) {
-    return forwardJson(
+  if (accountToken && account) {
+    const upstreamBody = {
+      ...input.body,
+      model: input.model.upstreamModel,
+    }
+    const response = await fetch(
       "https://chatgpt.com/backend-api/codex/responses",
-      key,
-      input
+      {
+        method: "POST",
+        headers: cloneCodexResponsesHeaders(
+          input.request,
+          key,
+          account.chatgptAccountId
+        ),
+        body: JSON.stringify(upstreamBody),
+      }
     )
+
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    })
   }
 
   return forwardJson("https://api.openai.com/v1/responses", key, input)
@@ -1756,6 +2259,10 @@ export async function forwardCodexControlRequest(
   const method = request.method.toUpperCase()
   const hasBody = method !== "GET" && method !== "HEAD"
   const body = hasBody ? await request.arrayBuffer() : undefined
+  const upstreamBody =
+    normalizedPath === "responses/compact"
+      ? normalizeCodexCompactPayload(body)
+      : body
   const response = await fetch(upstreamUrl, {
     method,
     headers: cloneCodexControlHeaders(
@@ -1764,7 +2271,11 @@ export async function forwardCodexControlRequest(
       account.chatgptAccountId,
       hasBody
     ),
-    body: body && body.byteLength > 0 ? body : undefined,
+    body:
+      upstreamBody &&
+      (typeof upstreamBody === "string" || upstreamBody.byteLength > 0)
+        ? upstreamBody
+        : undefined,
   })
 
   return new Response(response.body, {
