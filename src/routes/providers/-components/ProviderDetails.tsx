@@ -134,6 +134,7 @@ export function ChatGptUsageCard() {
 export function ProviderDetails({ provider }: ProviderDetailsProps) {
   const isChatGPT = provider.type === "ChatGPT"
   const isOpenCodeZen = provider.type === "OpenCode Zen"
+  const isOpenCodeGo = provider.type === "OpenCode Go"
   const isOllamaCloud = provider.type === "Ollama Cloud"
 
   return (
@@ -200,7 +201,7 @@ export function ProviderDetails({ provider }: ProviderDetailsProps) {
               </div>
               <div className="flex items-center gap-2">
                 <span className="font-mono text-sm">
-                  {isOpenCodeZen
+                  {isOpenCodeZen || isOpenCodeGo
                     ? "zen-••••••••••••"
                     : isOllamaCloud
                       ? "ollama-••••••••••••"
@@ -227,9 +228,11 @@ export function ProviderDetails({ provider }: ProviderDetailsProps) {
               <span className="font-mono text-sm text-muted-foreground">
                 {isOllamaCloud
                   ? "https://ollama.com/v1"
-                  : isOpenCodeZen
-                    ? "https://opencode.ai/zen/v1"
-                    : "https://openrouter.ai/api/v1"}
+                  : isOpenCodeGo
+                    ? "https://opencode.ai/zen/go/v1"
+                    : isOpenCodeZen
+                      ? "https://opencode.ai/zen/v1"
+                      : "https://openrouter.ai/api/v1"}
               </span>
             </div>
           </CardContent>

@@ -18,7 +18,12 @@ export const Route = createFileRoute("/models/")({
   component: ModelsPage,
 })
 
-type ProviderTab = "chatgpt" | "openrouter" | "opencode-zen" | "ollama-cloud"
+type ProviderTab =
+  | "chatgpt"
+  | "openrouter"
+  | "opencode-zen"
+  | "opencode-go"
+  | "ollama-cloud"
 
 type ModelRow = {
   id: string
@@ -82,6 +87,7 @@ function iconForModel(id: string) {
   if (
     !id.startsWith("openrouter/") &&
     !id.startsWith("opencode/") &&
+    !id.startsWith("opencode-go/") &&
     !id.startsWith("ollama/")
   ) {
     return Triangle
@@ -91,8 +97,8 @@ function iconForModel(id: string) {
     return Triangle
   }
 
-  if (id.startsWith("opencode/")) {
-    const model = id.replace(/^opencode\//, "")
+  if (id.startsWith("opencode-go/") || id.startsWith("opencode/")) {
+    const model = id.replace(/^opencode-go\//, "").replace(/^opencode\//, "")
 
     if (model.startsWith("claude-")) {
       return Activity
@@ -146,6 +152,7 @@ function ModelsPage() {
     { id: "chatgpt", label: "ChatGPT" },
     { id: "openrouter", label: "OpenRouter" },
     { id: "opencode-zen", label: "OpenCode Zen" },
+    { id: "opencode-go", label: "OpenCode Go" },
     { id: "ollama-cloud", label: "Ollama Cloud" },
   ] as const
   const activeTabLabel =

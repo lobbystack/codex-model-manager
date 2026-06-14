@@ -28,6 +28,16 @@ const MODELS_DEV_CACHE_TTL_MS = 5 * 60 * 1000
 const MODELS_DEV_URL = "https://models.dev/api.json"
 const ZEN_VISION_MODEL_PREFIXES = ["claude-", "gemini-", "gpt-"]
 
+export function upstreamOpenCodeModelId(modelId: string) {
+  return modelId.replace(/^opencode-go\//, "").replace(/^opencode\//, "")
+}
+
+function supportsKimiVision(upstreamModel: string) {
+  return (
+    upstreamModel.startsWith("kimi-") && !upstreamModel.includes("thinking")
+  )
+}
+
 let modelsDevOpenCodeCache:
   | { expiresAt: number; models: Map<string, ZenModelMetadata> }
   | undefined
@@ -69,10 +79,11 @@ export function extractZenInputModalitiesFromMetadata(
 }
 
 export function openCodeZenInputModalitiesFallback(modelId: string) {
-  const upstreamModel = modelId.replace(/^opencode\//, "")
+  const upstreamModel = upstreamOpenCodeModelId(modelId)
 
   if (
-    ZEN_VISION_MODEL_PREFIXES.some((prefix) => upstreamModel.startsWith(prefix))
+    ZEN_VISION_MODEL_PREFIXES.some((prefix) => upstreamModel.startsWith(prefix)) ||
+    supportsKimiVision(upstreamModel)
   ) {
     return ["text", "image"]
   }
@@ -90,16 +101,24 @@ export function resolveZenInputModalities({
   storedModalities?: Array<string>
 }) {
   const metadataModalities = extractZenInputModalitiesFromMetadata(metadata)
+  const allowed =
+    metadataModalities ?? openCodeZenInputModalitiesFallback(modelId)
 
-  if (metadataModalities) {
-    return metadataModalities
+  if (!storedModalities?.length) {
+    return allowed
   }
 
-  if (storedModalities?.length) {
-    return normalizeZenInputModalities(storedModalities)
+  const clamped = clampZenInputModalities(storedModalities, allowed)
+
+  if (
+    clamped.length === 1 &&
+    clamped[0] === "text" &&
+    allowed.includes("image")
+  ) {
+    return allowed
   }
 
-  return openCodeZenInputModalitiesFallback(modelId)
+  return clamped
 }
 
 export function mergeZenModelCapabilities(
@@ -120,8 +139,7 @@ export function mergeZenModelCapabilities(
   return {
     displayName: zenModel.name || modelsDevMetadata?.name,
     inputModalities,
-    contextWindow:
-      zenModel.limit?.context ?? modelsDevMetadata?.limit?.context,
+    contextWindow: zenModel.limit?.context ?? modelsDevMetadata?.limit?.context,
     outputLimit: zenModel.limit?.output ?? modelsDevMetadata?.limit?.output,
   }
 }
@@ -163,10 +181,7 @@ async function fetchModelsDevOpenCodeMetadata() {
 }
 
 export async function getModelsDevOpenCodeMetadata() {
-  if (
-    modelsDevOpenCodeCache &&
-    modelsDevOpenCodeCache.expiresAt > Date.now()
-  ) {
+  if (modelsDevOpenCodeCache && modelsDevOpenCodeCache.expiresAt > Date.now()) {
     return modelsDevOpenCodeCache.models
   }
 

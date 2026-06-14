@@ -28,6 +28,7 @@ type Step =
   | "chatgpt"
   | "openrouter"
   | "opencode-zen"
+  | "opencode-go"
   | "ollama-cloud"
 type OAuthStage = "intro" | "browser" | "device" | "success" | "error"
 
@@ -105,10 +106,13 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
   const [openRouterError, setOpenRouterError] = useState<string | null>(null)
   const [openCodeZenKey, setOpenCodeZenKey] = useState("")
   const [openCodeZenError, setOpenCodeZenError] = useState<string | null>(null)
+  const [openCodeGoKey, setOpenCodeGoKey] = useState("")
+  const [openCodeGoError, setOpenCodeGoError] = useState<string | null>(null)
   const [ollamaCloudKey, setOllamaCloudKey] = useState("")
   const [ollamaCloudError, setOllamaCloudError] = useState<string | null>(null)
   const [isSavingOpenRouter, setIsSavingOpenRouter] = useState(false)
   const [isSavingOpenCodeZen, setIsSavingOpenCodeZen] = useState(false)
+  const [isSavingOpenCodeGo, setIsSavingOpenCodeGo] = useState(false)
   const [isSavingOllamaCloud, setIsSavingOllamaCloud] = useState(false)
   const [manualCallbackUrl, setManualCallbackUrl] = useState("")
   const [oauthState, setOAuthState] = useState<OAuthState>(initialOAuthState)
@@ -124,10 +128,13 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
         setOpenRouterError(null)
         setOpenCodeZenKey("")
         setOpenCodeZenError(null)
+        setOpenCodeGoKey("")
+        setOpenCodeGoError(null)
         setOllamaCloudKey("")
         setOllamaCloudError(null)
         setIsSavingOpenRouter(false)
         setIsSavingOpenCodeZen(false)
+        setIsSavingOpenCodeGo(false)
         setIsSavingOllamaCloud(false)
         setManualCallbackUrl("")
         setOAuthState(initialOAuthState)
@@ -281,6 +288,23 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
     }
   }
 
+  async function saveOpenCodeGoKey() {
+    setOpenCodeGoError(null)
+    setIsSavingOpenCodeGo(true)
+
+    try {
+      await postJson("/api/providers/opencode-go", { apiKey: openCodeGoKey })
+      onConnected()
+      handleOpenChange(false)
+    } catch (error) {
+      setOpenCodeGoError(
+        error instanceof Error ? error.message : "Failed to save OpenCode Go key."
+      )
+    } finally {
+      setIsSavingOpenCodeGo(false)
+    }
+  }
+
   async function saveOllamaCloudKey() {
     setOllamaCloudError(null)
     setIsSavingOllamaCloud(true)
@@ -355,6 +379,7 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
             {step === "chatgpt" ? "Sign in with ChatGPT" : null}
             {step === "openrouter" ? "Add OpenRouter API Key" : null}
             {step === "opencode-zen" ? "Add OpenCode Zen API Key" : null}
+            {step === "opencode-go" ? "Add OpenCode Go API Key" : null}
             {step === "ollama-cloud" ? "Add Ollama Cloud API Key" : null}
           </DialogTitle>
           <DialogDescription>
@@ -367,6 +392,9 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
               : null}
             {step === "opencode-zen"
               ? "Enter your OpenCode Zen API key to connect the provider."
+              : null}
+            {step === "opencode-go"
+              ? "Enter your OpenCode API key. If you already connected Zen, you can paste the same key here."
               : null}
             {step === "ollama-cloud"
               ? "Enter your Ollama Cloud API key to connect the provider."
@@ -424,6 +452,24 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
                 </span>
                 <span className="text-xs text-muted-foreground">
                   Connect using your Zen pay-as-you-go API key.
+                </span>
+              </div>
+            </button>
+
+            <button
+              className="flex items-start gap-4 rounded-lg border p-4 text-left transition-colors hover:bg-accent focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none"
+              onClick={() => setStep("opencode-go")}
+              type="button"
+            >
+              <div className="flex size-10 items-center justify-center rounded-full bg-muted">
+                <Key className="size-5 text-foreground" />
+              </div>
+              <div className="grid gap-1">
+                <span className="text-sm font-semibold">
+                  OpenCode Go API Key
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  Connect your Go subscription models (same key as Zen).
                 </span>
               </div>
             </button>
@@ -646,6 +692,27 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
           </div>
         ) : null}
 
+        {step === "opencode-go" ? (
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="openCodeGoApiKey">API Key</Label>
+              <Input
+                autoComplete="off"
+                id="openCodeGoApiKey"
+                onChange={(event) => setOpenCodeGoKey(event.target.value)}
+                placeholder="opencode_..."
+                type="password"
+                value={openCodeGoKey}
+              />
+            </div>
+            {openCodeGoError ? (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                {openCodeGoError}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
         {step === "ollama-cloud" ? (
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
@@ -705,6 +772,14 @@ export function AddProviderDialog({ onConnected }: AddProviderDialogProps) {
               onClick={() => void saveOpenCodeZenKey()}
             >
               {isSavingOpenCodeZen ? "Saving..." : "Save API Key"}
+            </Button>
+          ) : null}
+          {step === "opencode-go" ? (
+            <Button
+              disabled={!openCodeGoKey.trim() || isSavingOpenCodeGo}
+              onClick={() => void saveOpenCodeGoKey()}
+            >
+              {isSavingOpenCodeGo ? "Saving..." : "Save API Key"}
             </Button>
           ) : null}
           {step === "ollama-cloud" ? (
