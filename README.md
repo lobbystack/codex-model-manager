@@ -176,6 +176,27 @@ The dev server runs on:
 http://localhost:1455
 ```
 
+If port `1455` is already in use, the installed background app is probably still
+running. Stop it before starting the dev server:
+
+**macOS (installer)**
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.codex-model-manager.app.plist
+```
+
+Start it again later:
+
+```bash
+launchctl load ~/Library/LaunchAgents/com.codex-model-manager.app.plist
+```
+
+If the port is still busy:
+
+```bash
+lsof -ti :1455 | xargs kill
+```
+
 Production build:
 
 ```bash
@@ -225,8 +246,19 @@ release first, then rerun the installer.
 
 **Port `1455` is already in use**
 
-Stop the existing process or configure your local environment carefully. The
-default OAuth callback expects port `1455`.
+Stop the installed background app on macOS:
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.codex-model-manager.app.plist
+```
+
+If the port is still busy:
+
+```bash
+lsof -ti :1455 | xargs kill
+```
+
+The default OAuth callback expects port `1455`.
 
 **Node version errors**
 
