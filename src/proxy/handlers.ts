@@ -10,6 +10,7 @@ import {
   toOpenAIModelList,
 } from "./model-registry"
 import { toCodexModelCatalog } from "./codex-catalog"
+import { getModelsDevOpenCodeMetadata } from "./opencode-zen-capabilities"
 import {
   forwardChatCompletions,
   forwardCodexAutoReviewResponses,
@@ -33,6 +34,37 @@ import {
 import { addUsageLog } from "@/server/usage/store"
 
 const MAX_DECOMPRESSED_BODY_BYTES = 32 * 1024 * 1024
+const PROVIDER_MODEL_CACHE_TTL_MS = 5 * 60 * 1000
+
+type ResolvedConfiguredModels = {
+  enabledModels: Array<ManagedModel>
+  catalogModels: Array<ManagedModel>
+}
+
+type ProxyTimings = {
+  modelResolutionMs: number
+  upstreamResponseMs: number
+  upstreamFirstByteMs?: number | null
+}
+
+let chatGptCodexModelsCache: {
+  expiresAt: number
+  models: Array<ManagedModel>
+} | null = null
+let chatGptCodexModelsRequest: Promise<Array<ManagedModel>> | null = null
+let openRouterCapabilitiesCache: {
+  expiresAt: number
+  capabilities: Map<
+    string,
+    { supportedParameters: Array<string>; inputModalities: Array<string> }
+  >
+} | null = null
+let openRouterCapabilitiesRequest: Promise<
+  Map<
+    string,
+    { supportedParameters: Array<string>; inputModalities: Array<string> }
+  >
+> | null = null
 
 export function proxyJson(data: unknown, status = 200) {
   return Response.json(data, {
@@ -46,7 +78,17 @@ export function proxyJson(data: unknown, status = 200) {
   })
 }
 
-export async function fetchChatGptCodexModels(): Promise<Array<ManagedModel>> {
+function cachedChatGptCodexModels() {
+  return chatGptCodexModelsCache?.models || []
+}
+
+function shouldRefreshChatGptCodexModels() {
+  return (
+    !chatGptCodexModelsCache || chatGptCodexModelsCache.expiresAt <= Date.now()
+  )
+}
+
+async function fetchLiveChatGptCodexModels(): Promise<Array<ManagedModel>> {
   const account = await getActiveAccount()
 
   if (!account) {
@@ -87,7 +129,58 @@ export async function fetchChatGptCodexModels(): Promise<Array<ManagedModel>> {
   }
 }
 
+export async function fetchChatGptCodexModels(): Promise<Array<ManagedModel>> {
+  if (!shouldRefreshChatGptCodexModels()) {
+    return cachedChatGptCodexModels()
+  }
+
+  chatGptCodexModelsRequest ||= fetchLiveChatGptCodexModels().then((models) => {
+    chatGptCodexModelsCache = {
+      expiresAt:
+        Date.now() + (models.length > 0 ? PROVIDER_MODEL_CACHE_TTL_MS : 10_000),
+      models,
+    }
+    chatGptCodexModelsRequest = null
+    return models
+  })
+
+  return chatGptCodexModelsRequest
+}
+
 async function fetchOpenRouterModelCapabilities(): Promise<
+  Map<
+    string,
+    { supportedParameters: Array<string>; inputModalities: Array<string> }
+  >
+> {
+  if (
+    openRouterCapabilitiesCache &&
+    openRouterCapabilitiesCache.expiresAt > Date.now()
+  ) {
+    return openRouterCapabilitiesCache.capabilities
+  }
+
+  if (openRouterCapabilitiesRequest) {
+    return openRouterCapabilitiesRequest
+  }
+
+  openRouterCapabilitiesRequest = fetchLiveOpenRouterModelCapabilities().then(
+    (capabilities) => {
+      openRouterCapabilitiesCache = {
+        expiresAt:
+          Date.now() +
+          (capabilities.size > 0 ? PROVIDER_MODEL_CACHE_TTL_MS : 10_000),
+        capabilities,
+      }
+      openRouterCapabilitiesRequest = null
+      return capabilities
+    }
+  )
+
+  return openRouterCapabilitiesRequest
+}
+
+async function fetchLiveOpenRouterModelCapabilities(): Promise<
   Map<
     string,
     { supportedParameters: Array<string>; inputModalities: Array<string> }
@@ -311,11 +404,20 @@ function parseSsePayload(text: string) {
       const record = getRecord(parsed)
       const response = getRecord(record?.response)
 
-      if (getRecord(response?.usage) || getRecord(record?.usage)) {
+      if (
+        getRecord(response?.usage) ||
+        getRecord(record?.usage) ||
+        getRecord(response?.error) ||
+        getRecord(record?.error)
+      ) {
         return response || parsed
       }
 
-      if (record?.type === "response.completed" && response) {
+      if (
+        (record?.type === "response.completed" ||
+          record?.type === "response.failed") &&
+        response
+      ) {
         return response
       }
     } catch {
@@ -357,6 +459,58 @@ function extractError(payload: unknown, statusCode: number) {
   return { code, message }
 }
 
+async function readUsagePayload(response: Response, contentType: string) {
+  const reader = response.body?.getReader()
+
+  if (!reader) {
+    return { payload: null, upstreamFirstByteMs: null }
+  }
+
+  const decoder = new TextDecoder()
+  const startedAt = performance.now()
+  let text = ""
+  let upstreamFirstByteMs: number | null = null
+
+  try {
+    for (;;) {
+      const { done, value } = await reader.read()
+
+      if (done) {
+        break
+      }
+
+      if (value.byteLength > 0 && upstreamFirstByteMs === null) {
+        upstreamFirstByteMs = Math.max(
+          0,
+          Math.round(performance.now() - startedAt)
+        )
+      }
+
+      text += decoder.decode(value, { stream: true })
+    }
+
+    text += decoder.decode()
+  } finally {
+    reader.releaseLock()
+  }
+
+  if (contentType.includes("application/json")) {
+    try {
+      return {
+        payload: text ? JSON.parse(text) : null,
+        upstreamFirstByteMs,
+      }
+    } catch {
+      return { payload: null, upstreamFirstByteMs }
+    }
+  }
+
+  return {
+    payload: isSsePayload(contentType, text) ? parseSsePayload(text) : text,
+    upstreamFirstByteMs,
+  }
+}
+
 async function recordUsage({
   requestStartedAtMs,
   requestStartedAtEpochMs,
@@ -365,6 +519,7 @@ async function recordUsage({
   body,
   response,
   payload,
+  timings,
 }: {
   requestStartedAtMs: number
   requestStartedAtEpochMs: number
@@ -373,6 +528,7 @@ async function recordUsage({
   body: Record<string, unknown>
   response: Response
   payload: unknown
+  timings: ProxyTimings
 }) {
   const tokens = withEstimatedTokens(extractUsageTokens(payload), body, payload)
   const upstreamCostUsd = extractUpstreamCostUsd(payload)
@@ -385,7 +541,7 @@ async function recordUsage({
     serviceTier
   )
   const { code, message } = extractError(payload, response.status)
-  const status = response.status >= 400 ? "error" : "success"
+  const status = response.status >= 400 || code ? "error" : "success"
 
   await addUsageLog({
     id: crypto.randomUUID(),
@@ -402,6 +558,9 @@ async function recordUsage({
     estimatedCostUsd,
     realCostUsd: calculateRealCostUsd(model.provider, estimatedCostUsd),
     latencyMs: Math.max(0, Math.round(performance.now() - requestStartedAtMs)),
+    modelResolutionMs: timings.modelResolutionMs,
+    upstreamResponseMs: timings.upstreamResponseMs,
+    upstreamFirstByteMs: timings.upstreamFirstByteMs ?? null,
     ...tokens,
   })
 }
@@ -412,51 +571,30 @@ function logResponseUsage(
   model: ManagedModel,
   kind: "chat" | "responses",
   body: Record<string, unknown>,
-  response: Response
+  response: Response,
+  timings: ProxyTimings
 ) {
   const contentType = response.headers.get("content-type") || ""
-
-  if (!contentType.includes("application/json")) {
-    const loggingResponse = response.clone()
-
-    void (async () => {
-      let payload: unknown = null
-
-      try {
-        const text = await loggingResponse.text()
-        payload = isSsePayload(contentType, text) ? parseSsePayload(text) : text
-      } catch {
-        payload = null
-      }
-
-      try {
-        await recordUsage({
-          requestStartedAtMs,
-          requestStartedAtEpochMs,
-          model,
-          kind,
-          body,
-          response: loggingResponse,
-          payload,
-        })
-      } catch {
-        // Usage logging should not break the proxy response.
-      }
-    })()
-
-    return response
-  }
-
   const loggingResponse = response.clone()
 
   void (async () => {
     let payload: unknown = null
+    let upstreamFirstByteMs: number | null = null
 
     try {
-      const text = await loggingResponse.text()
-      payload = text ? JSON.parse(text) : null
+      const read = await readUsagePayload(loggingResponse, contentType)
+      payload = read.payload
+      upstreamFirstByteMs = read.upstreamFirstByteMs
     } catch {
       payload = null
+    }
+
+    const usageTimings = {
+      ...timings,
+      upstreamFirstByteMs:
+        upstreamFirstByteMs === null
+          ? null
+          : timings.upstreamResponseMs + upstreamFirstByteMs,
     }
 
     try {
@@ -468,6 +606,7 @@ function logResponseUsage(
         body,
         response: loggingResponse,
         payload,
+        timings: usageTimings,
       })
     } catch {
       // Usage logging should not break the proxy response.
@@ -475,6 +614,20 @@ function logResponseUsage(
   })()
 
   return response
+}
+
+function upstreamExceptionResponse(error: unknown) {
+  const message = error instanceof Error ? error.message : "fetch failed"
+
+  return proxyJson(
+    {
+      error: {
+        message: `Upstream request failed: ${message}`,
+        type: "upstream_fetch_failed",
+      },
+    },
+    502
+  )
 }
 
 function hiddenChatGptModelOverride(model: ManagedModel): ManagedModel {
@@ -491,12 +644,68 @@ function hiddenChatGptModelOverride(model: ManagedModel): ManagedModel {
   }
 }
 
-async function resolveConfiguredModels() {
-  const settings = await listOpenRouterModelSettings()
-  const openCodeZenSettings = await listOpenCodeZenModelSettings()
-  const ollamaCloudSettings = await listOllamaCloudModelSettings()
-  const chatGptSettings = await listChatGptModelSettings()
-  const liveOpenAIModels = await fetchChatGptCodexModels()
+function findManagedModel(models: Array<ManagedModel>, modelId: string) {
+  return models.find(
+    (candidate) =>
+      candidate.id === modelId || publicModelId(candidate) === modelId
+  )
+}
+
+function hasOpenAICredentials() {
+  return Boolean(process.env.CMM_OPENAI_KEYS || process.env.OPENAI_API_KEY)
+}
+
+function isOpenAIModelId(modelId: string) {
+  return (
+    !modelId.includes("/") &&
+    !modelId.startsWith("openrouter-") &&
+    !modelId.startsWith("opencode-") &&
+    !modelId.startsWith("ollama-")
+  )
+}
+
+function fallbackChatGptModel(
+  modelId: string,
+  displayName = modelId
+): ManagedModel {
+  return {
+    id: modelId,
+    displayName,
+    provider: "openai-pool",
+    upstreamModel: modelId,
+    enabled: true,
+    supportsResponses: true,
+    supportsChatCompletions: false,
+    supportsReasoning: true,
+    reasoningCapability: { kind: "effort", levels: ["low", "medium", "high"] },
+    contextWindow: 0,
+    outputLimit: 0,
+    inputModalities: ["text"],
+  }
+}
+
+async function resolveStoredModels({
+  includeLiveOpenAI,
+  includeProviderCapabilities,
+}: {
+  includeLiveOpenAI: boolean
+  includeProviderCapabilities: boolean
+}): Promise<ResolvedConfiguredModels> {
+  const [
+    settings,
+    openCodeZenSettings,
+    ollamaCloudSettings,
+    chatGptSettings,
+    liveOpenAIModels,
+  ] = await Promise.all([
+    listOpenRouterModelSettings(),
+    listOpenCodeZenModelSettings(),
+    listOllamaCloudModelSettings(),
+    listChatGptModelSettings(),
+    includeLiveOpenAI
+      ? fetchChatGptCodexModels()
+      : Promise.resolve(cachedChatGptCodexModels()),
+  ])
   const chatGptSettingsById = new Map(
     chatGptSettings.map((model) => [model.id, model])
   )
@@ -506,19 +715,33 @@ async function resolveConfiguredModels() {
   const hiddenLiveOpenAIModels = liveOpenAIModels
     .filter((model) => chatGptSettingsById.get(model.id)?.enabled === false)
     .map(hiddenChatGptModelOverride)
-  const openRouterCapabilities = settings.some(
-    (model) => model.providerName || model.id.startsWith("openrouter/")
-  )
-    ? await fetchOpenRouterModelCapabilities()
-    : new Map<
-        string,
-        { supportedParameters: Array<string>; inputModalities: Array<string> }
-      >()
+  const openRouterCapabilities =
+    includeProviderCapabilities &&
+    settings.some(
+      (model) => model.providerName || model.id.startsWith("openrouter/")
+    )
+      ? await fetchOpenRouterModelCapabilities()
+      : new Map<
+          string,
+          { supportedParameters: Array<string>; inputModalities: Array<string> }
+        >()
+  const openCodeZenMetadataById =
+    includeProviderCapabilities && openCodeZenSettings.length > 0
+      ? await getModelsDevOpenCodeMetadata()
+      : new Map()
   const hasOpenRouterSettings = settings.length > 0
   const settingsById = new Map(settings.map((model) => [model.id, model]))
   const staticModels = managedModels.filter((model) => {
-    if (model.provider === "openai-pool" && liveOpenAIModels.length > 0) {
-      return false
+    if (model.provider === "openai-pool") {
+      const setting = chatGptSettingsById.get(model.id)
+
+      if (setting) {
+        return setting.enabled
+      }
+
+      if (liveOpenAIModels.length > 0) {
+        return false
+      }
     }
 
     const setting = settingsById.get(model.id)
@@ -552,7 +775,12 @@ async function resolveConfiguredModels() {
     })
   const configuredOpenCodeZenModels = openCodeZenSettings
     .filter((model) => model.enabled)
-    .map(openCodeZenSettingToManagedModel)
+    .map((model) =>
+      openCodeZenSettingToManagedModel(
+        model,
+        openCodeZenMetadataById.get(model.upstreamModel)
+      )
+    )
   const configuredOllamaCloudModels = ollamaCloudSettings
     .filter((model) => model.enabled)
     .map(ollamaCloudSettingToManagedModel)
@@ -576,6 +804,48 @@ async function resolveConfiguredModels() {
   }
 }
 
+async function resolveConfiguredModels() {
+  return resolveStoredModels({
+    includeLiveOpenAI: true,
+    includeProviderCapabilities: true,
+  })
+}
+
+async function resolveRequestModel(modelId: string) {
+  const localModels = await resolveStoredModels({
+    includeLiveOpenAI: false,
+    includeProviderCapabilities: false,
+  })
+  const localModel = findManagedModel(localModels.enabledModels, modelId)
+
+  if (localModel) {
+    return localModel
+  }
+
+  const chatGptSettings = await listChatGptModelSettings()
+  const chatGptSetting = chatGptSettings.find((model) => model.id === modelId)
+
+  if (chatGptSetting?.enabled === false) {
+    return null
+  }
+
+  if (!isOpenAIModelId(modelId)) {
+    return null
+  }
+
+  const account = await getActiveAccount()
+
+  if (!account && !hasOpenAICredentials()) {
+    return null
+  }
+
+  if (shouldRefreshChatGptCodexModels()) {
+    void fetchChatGptCodexModels().catch(() => undefined)
+  }
+
+  return fallbackChatGptModel(modelId, chatGptSetting?.displayName)
+}
+
 export async function getEnabledModels() {
   return (await resolveConfiguredModels()).enabledModels
 }
@@ -585,15 +855,15 @@ export async function getCodexCatalogModels() {
 }
 
 export async function getHealth() {
-  const models = await getEnabledModels()
-  await writeCodexModelCatalog(await getCodexCatalogModels())
-  return proxyJson({ ok: true, models: models.length })
+  const models = await resolveConfiguredModels()
+  await writeCodexModelCatalog(models.catalogModels)
+  return proxyJson({ ok: true, models: models.enabledModels.length })
 }
 
 export async function getOpenAIModels() {
-  const models = await getEnabledModels()
-  await writeCodexModelCatalog(await getCodexCatalogModels())
-  return proxyJson(toOpenAIModelList(models))
+  const models = await resolveConfiguredModels()
+  await writeCodexModelCatalog(models.catalogModels)
+  return proxyJson(toOpenAIModelList(models.enabledModels))
 }
 
 export async function getCodexModels() {
@@ -603,9 +873,9 @@ export async function getCodexModels() {
 }
 
 export async function getManagedModels() {
-  const models = await getEnabledModels()
-  await writeCodexModelCatalog(await getCodexCatalogModels())
-  return proxyJson({ models })
+  const models = await resolveConfiguredModels()
+  await writeCodexModelCatalog(models.catalogModels)
+  return proxyJson({ models: models.enabledModels })
 }
 
 export function optionsResponse() {
@@ -639,9 +909,11 @@ export async function routeProxyRequest(
     return forwardCodexAutoReviewResponses(codexControlRequest!, body)
   }
 
-  const model = (await getEnabledModels()).find(
-    (candidate) =>
-      candidate.id === modelId || publicModelId(candidate) === modelId
+  const modelResolutionStartedAtMs = performance.now()
+  const model = await resolveRequestModel(modelId)
+  const modelResolutionMs = Math.max(
+    0,
+    Math.round(performance.now() - modelResolutionStartedAtMs)
   )
 
   if (!model) {
@@ -657,15 +929,44 @@ export async function routeProxyRequest(
   }
 
   if (kind === "chat") {
+    let response: Response
+    const upstreamStartedAtMs = performance.now()
+
+    try {
+      response = await forwardChatCompletions({ request, model, body })
+    } catch (error) {
+      response = upstreamExceptionResponse(error)
+    }
+
+    const upstreamResponseMs = Math.max(
+      0,
+      Math.round(performance.now() - upstreamStartedAtMs)
+    )
+
     return logResponseUsage(
       requestStartedAtMs,
       requestStartedAtEpochMs,
       model,
       kind,
       body,
-      await forwardChatCompletions({ request, model, body })
+      response,
+      { modelResolutionMs, upstreamResponseMs }
     )
   }
+
+  let response: Response
+  const upstreamStartedAtMs = performance.now()
+
+  try {
+    response = await forwardResponses({ request, model, body })
+  } catch (error) {
+    response = upstreamExceptionResponse(error)
+  }
+
+  const upstreamResponseMs = Math.max(
+    0,
+    Math.round(performance.now() - upstreamStartedAtMs)
+  )
 
   return logResponseUsage(
     requestStartedAtMs,
@@ -673,6 +974,7 @@ export async function routeProxyRequest(
     model,
     kind,
     body,
-    await forwardResponses({ request, model, body })
+    response,
+    { modelResolutionMs, upstreamResponseMs }
   )
 }

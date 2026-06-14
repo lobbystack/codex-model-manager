@@ -1,9 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router"
 
+import type { ZenModelMetadata } from "@/proxy/opencode-zen-capabilities"
+import {
+  clampZenInputModalities,
+  getModelsDevOpenCodeMetadata,
+  mergeZenModelCapabilities,
+  resolveZenInputModalities,
+} from "@/proxy/opencode-zen-capabilities"
 import { getEnabledModels } from "@/proxy/handlers"
 import {
   inferOpenCodeZenReasoningCapability,
-  openCodeZenInputModalitiesForModel,
   openCodeZenModelFamily,
 } from "@/proxy/model-registry"
 import { apiJson, apiOptions, readJson } from "@/server/api/json"
@@ -15,16 +21,10 @@ import {
 } from "@/server/accounts/store"
 import { writeCodexModelCatalog } from "@/server/codex/catalog-file"
 
-type ZenModel = {
-  id: string
-  object?: string
-  owned_by?: string
-}
-
 const PROVIDER_MODELS_CACHE_TTL_MS = 5 * 60 * 1000
 
 let openCodeZenModelsCache:
-  | { expiresAt: number; models: Array<ZenModel> }
+  | { expiresAt: number; models: Array<ZenModelMetadata> }
   | undefined
 
 const defaultEnabledModelIds = new Set([
@@ -127,7 +127,7 @@ async function fetchOpenCodeZenModels() {
     throw response
   }
 
-  const data = (await response.json()) as { data?: Array<ZenModel> }
+  const data = (await response.json()) as { data?: Array<ZenModelMetadata> }
   return data.data || []
 }
 
@@ -146,8 +146,72 @@ async function getCachedOpenCodeZenModels() {
   return models
 }
 
+function toManagedZenModel({
+  model,
+  metadataById,
+  setting,
+  hasSettings,
+  hasProviderKey,
+}: {
+  model: ZenModelMetadata
+  metadataById: Map<string, ZenModelMetadata>
+  setting?: {
+    displayName: string
+    providerName: string
+    enabled: boolean
+    supportsReasoning?: boolean
+    supportedParameters?: Array<string>
+    contextWindow: number
+    outputLimit: number
+    inputModalities?: Array<string>
+  }
+  hasSettings: boolean
+  hasProviderKey: boolean
+}) {
+  const id = `opencode/${model.id}`
+  const modelsDevMetadata = metadataById.get(model.id)
+  const capabilities = mergeZenModelCapabilities(model, modelsDevMetadata)
+  const reasoningCapability = inferOpenCodeZenReasoningCapability(id)
+  const family = openCodeZenModelFamily(id)
+
+  return {
+    id,
+    displayName:
+      setting?.displayName ||
+      capabilities.displayName ||
+      displayNameForModel(model.id),
+    provider: "opencode-zen",
+    providerName: setting?.providerName || providerNameForModel(model.id),
+    upstreamModel: model.id,
+    enabled:
+      setting?.enabled ??
+      (!hasSettings && hasProviderKey && defaultEnabledModelIds.has(id)),
+    supportsResponses: true,
+    supportsChatCompletions: family === "chat",
+    supportsReasoning:
+      setting?.supportsReasoning ?? reasoningCapability.kind !== "none",
+    supportedParameters: setting?.supportedParameters || [],
+    contextWindow:
+      setting?.contextWindow ||
+      capabilities.contextWindow ||
+      contextWindows[model.id] ||
+      0,
+    outputLimit: setting?.outputLimit || capabilities.outputLimit || 65536,
+    inputModalities: resolveZenInputModalities({
+      modelId: id,
+      metadata: {
+        ...modelsDevMetadata,
+        ...model,
+        architecture: model.architecture || modelsDevMetadata?.architecture,
+        modalities: model.modalities || modelsDevMetadata?.modalities,
+      },
+      storedModalities: setting?.inputModalities,
+    }),
+  }
+}
+
 async function listOpenCodeZenModels() {
-  let upstreamModels: Array<ZenModel>
+  let upstreamModels: Array<ZenModelMetadata>
 
   try {
     upstreamModels = await getCachedOpenCodeZenModels()
@@ -158,37 +222,24 @@ async function listOpenCodeZenModels() {
     )
   }
 
-  const settings = await listOpenCodeZenModelSettings()
+  const [settings, metadataById] = await Promise.all([
+    listOpenCodeZenModelSettings(),
+    getModelsDevOpenCodeMetadata(),
+  ])
   const hasSettings = settings.length > 0
   const hasProviderKey = Boolean(
     (await getOpenCodeZenKey()) || process.env.OPENCODE_ZEN_API_KEY
   )
   const settingsById = new Map(settings.map((model) => [model.id, model]))
-  const models = upstreamModels.map((model) => {
-    const id = `opencode/${model.id}`
-    const setting = settingsById.get(id)
-    const reasoningCapability = inferOpenCodeZenReasoningCapability(id)
-    const family = openCodeZenModelFamily(id)
-
-    return {
-      id,
-      displayName: setting?.displayName || displayNameForModel(model.id),
-      provider: "opencode-zen",
-      providerName: setting?.providerName || providerNameForModel(model.id),
-      upstreamModel: model.id,
-      enabled:
-        setting?.enabled ??
-        (!hasSettings && hasProviderKey && defaultEnabledModelIds.has(id)),
-      supportsResponses: true,
-      supportsChatCompletions: family === "chat",
-      supportsReasoning:
-        setting?.supportsReasoning ?? reasoningCapability.kind !== "none",
-      supportedParameters: setting?.supportedParameters || [],
-      contextWindow: setting?.contextWindow || contextWindows[model.id] || 0,
-      outputLimit: setting?.outputLimit || 65536,
-      inputModalities: openCodeZenInputModalitiesForModel(id),
-    }
-  })
+  const models = upstreamModels.map((model) =>
+    toManagedZenModel({
+      model,
+      metadataById,
+      setting: settingsById.get(`opencode/${model.id}`),
+      hasSettings,
+      hasProviderKey,
+    })
+  )
 
   return apiJson({
     models,
@@ -196,7 +247,10 @@ async function listOpenCodeZenModels() {
 }
 
 async function persistDefaultOpenCodeZenModels() {
-  const upstreamModels = await getCachedOpenCodeZenModels()
+  const [upstreamModels, metadataById] = await Promise.all([
+    getCachedOpenCodeZenModels(),
+    getModelsDevOpenCodeMetadata(),
+  ])
   const settings = await listOpenCodeZenModelSettings()
 
   if (settings.length > 0) {
@@ -210,19 +264,25 @@ async function persistDefaultOpenCodeZenModels() {
       continue
     }
 
+    const managedModel = toManagedZenModel({
+      model,
+      metadataById,
+      hasSettings: false,
+      hasProviderKey: true,
+    })
     const reasoningCapability = inferOpenCodeZenReasoningCapability(id)
 
     await upsertOpenCodeZenModelSetting({
       id,
-      displayName: displayNameForModel(model.id),
+      displayName: managedModel.displayName,
       providerName: providerNameForModel(model.id),
       upstreamModel: model.id,
       enabled: true,
       supportsReasoning: reasoningCapability.kind !== "none",
       supportedParameters: [],
-      contextWindow: contextWindows[model.id] || 0,
-      outputLimit: 65536,
-      inputModalities: openCodeZenInputModalitiesForModel(id),
+      contextWindow: managedModel.contextWindow,
+      outputLimit: managedModel.outputLimit,
+      inputModalities: managedModel.inputModalities,
     })
   }
 }
@@ -245,10 +305,27 @@ async function updateOpenCodeZenModel(request: Request) {
     typeof body.upstreamModel === "string"
       ? body.upstreamModel
       : body.id.replace(/^opencode\//, "")
+  const metadataById = await getModelsDevOpenCodeMetadata()
+  const modelsDevMetadata = metadataById.get(upstreamModel)
+  const allowedInputModalities = resolveZenInputModalities({
+    modelId: body.id,
+    metadata: modelsDevMetadata,
+  })
+  const requestedInputModalities = Array.isArray(body.inputModalities)
+    ? body.inputModalities.filter((modality) => typeof modality === "string")
+    : undefined
+  const inputModalities = clampZenInputModalities(
+    requestedInputModalities,
+    allowedInputModalities
+  )
+  const capabilities = mergeZenModelCapabilities(
+    { id: upstreamModel },
+    modelsDevMetadata
+  )
   const displayName =
     typeof body.displayName === "string" && body.displayName.trim()
       ? body.displayName.trim()
-      : displayNameForModel(upstreamModel)
+      : capabilities.displayName || displayNameForModel(upstreamModel)
   const providerName =
     typeof body.providerName === "string" && body.providerName.trim()
       ? body.providerName.trim()
@@ -256,25 +333,16 @@ async function updateOpenCodeZenModel(request: Request) {
   const contextWindow =
     typeof body.contextWindow === "number"
       ? body.contextWindow
-      : contextWindows[upstreamModel] || 0
+      : capabilities.contextWindow || contextWindows[upstreamModel] || 0
   const outputLimit =
-    typeof body.outputLimit === "number" ? body.outputLimit : 65536
+    typeof body.outputLimit === "number"
+      ? body.outputLimit
+      : capabilities.outputLimit || 65536
   const supportedParameters = Array.isArray(body.supportedParameters)
     ? body.supportedParameters.filter(
         (parameter) => typeof parameter === "string"
       )
     : []
-  const allowedInputModalities = openCodeZenInputModalitiesForModel(body.id)
-  const requestedInputModalities = Array.isArray(body.inputModalities)
-    ? body.inputModalities
-        .filter((modality) => typeof modality === "string")
-        .filter((modality) => allowedInputModalities.includes(modality))
-    : []
-  const inputModalities = Array.isArray(body.inputModalities)
-    ? requestedInputModalities.length > 0
-      ? requestedInputModalities
-      : allowedInputModalities
-    : allowedInputModalities
   const supportsReasoning =
     typeof body.supportsReasoning === "boolean"
       ? body.supportsReasoning

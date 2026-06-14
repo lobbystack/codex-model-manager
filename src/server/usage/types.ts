@@ -24,6 +24,9 @@ export type UsageLogEntry = UsageTokens & {
   estimatedCostUsd: number
   realCostUsd: number
   latencyMs: number
+  modelResolutionMs?: number
+  upstreamResponseMs?: number
+  upstreamFirstByteMs?: number | null
 }
 
 export type UsageSummary = {
