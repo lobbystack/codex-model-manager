@@ -58,7 +58,14 @@ const DEFAULT_PRICING_MODELS: Partial<Record<string, ModelPrice>> = {
   "minimax-m2.5": { inputPer1m: 0.3, cachedInputPer1m: 0.06, outputPer1m: 1.2 },
   "glm-5.1": { inputPer1m: 1.4, cachedInputPer1m: 0.26, outputPer1m: 4.4 },
   "glm-5": { inputPer1m: 1, cachedInputPer1m: 0.2, outputPer1m: 3.2 },
-  "kimi-k2.5": { inputPer1m: 0.6, cachedInputPer1m: 0.1, outputPer1m: 3 },
+  "deepseek-v4-pro": { inputPer1m: 1.74, cachedInputPer1m: 0.0145, outputPer1m: 3.48 },
+  "deepseek-v4-flash": { inputPer1m: 0.14, cachedInputPer1m: 0.0028, outputPer1m: 0.28 },
+  "mimo-v2.5-pro": { inputPer1m: 1.74, cachedInputPer1m: 0.0145, outputPer1m: 3.48 },
+  "mimo-v2.5": { inputPer1m: 0.14, cachedInputPer1m: 0.0028, outputPer1m: 0.28 },
+  "minimax-m3": { inputPer1m: 0.3, cachedInputPer1m: 0.06, outputPer1m: 1.2 },
+  "qwen3.7-max": { inputPer1m: 2.5, cachedInputPer1m: 0.5, outputPer1m: 7.5 },
+  "qwen3.7-plus": { inputPer1m: 0.4, cachedInputPer1m: 0.04, outputPer1m: 1.6 },
+  "kimi-k2.7-code": { inputPer1m: 0.95, cachedInputPer1m: 0.19, outputPer1m: 4 },
   "kimi-k2.6": { inputPer1m: 0.95, cachedInputPer1m: 0.16, outputPer1m: 4 },
   "qwen3.6-plus": { inputPer1m: 0.5, cachedInputPer1m: 0.05, outputPer1m: 3 },
   "qwen3.5-plus": { inputPer1m: 0.2, cachedInputPer1m: 0.02, outputPer1m: 1.2 },
@@ -275,6 +282,7 @@ function matchesPattern(value: string, pattern: string) {
 
 function normalizeModelId(model: string) {
   return model
+    .replace(/^opencode-go\//, "")
     .replace(/^opencode\//, "")
     .replace(/^openrouter\//, "")
     .toLowerCase()
@@ -506,6 +514,14 @@ export async function calculateEstimatedCostUsd(
     return calculateRegistryCostUsd(model, tokens, serviceTier) ?? 0
   }
 
+  if (provider === "opencode-go") {
+    if (upstreamCostUsd > 0) {
+      return upstreamCostUsd
+    }
+
+    return calculateRegistryCostUsd(model, tokens, serviceTier) ?? 0
+  }
+
   if (provider === "ollama-cloud") {
     return 0
   }
@@ -522,6 +538,10 @@ export function calculateRealCostUsd(
   }
 
   if (provider === "opencode-zen") {
+    return estimatedCostUsd
+  }
+
+  if (provider === "opencode-go") {
     return estimatedCostUsd
   }
 

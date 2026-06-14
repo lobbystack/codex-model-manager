@@ -4,6 +4,7 @@ import {
   codexModelInfoToManagedModel,
   managedModels,
   ollamaCloudSettingToManagedModel,
+  openCodeGoSettingToManagedModel,
   openCodeZenSettingToManagedModel,
   openRouterSettingToManagedModel,
   publicModelId,
@@ -22,6 +23,7 @@ import {
   getActiveAccount,
   listChatGptModelSettings,
   listOllamaCloudModelSettings,
+  listOpenCodeGoModelSettings,
   listOpenCodeZenModelSettings,
   listOpenRouterModelSettings,
 } from "@/server/accounts/store"
@@ -694,12 +696,14 @@ async function resolveStoredModels({
   const [
     settings,
     openCodeZenSettings,
+    openCodeGoSettings,
     ollamaCloudSettings,
     chatGptSettings,
     liveOpenAIModels,
   ] = await Promise.all([
     listOpenRouterModelSettings(),
     listOpenCodeZenModelSettings(),
+    listOpenCodeGoModelSettings(),
     listOllamaCloudModelSettings(),
     listChatGptModelSettings(),
     includeLiveOpenAI
@@ -727,6 +731,10 @@ async function resolveStoredModels({
         >()
   const openCodeZenMetadataById =
     includeProviderCapabilities && openCodeZenSettings.length > 0
+      ? await getModelsDevOpenCodeMetadata()
+      : new Map()
+  const openCodeGoMetadataById =
+    includeProviderCapabilities && openCodeGoSettings.length > 0
       ? await getModelsDevOpenCodeMetadata()
       : new Map()
   const hasOpenRouterSettings = settings.length > 0
@@ -781,6 +789,14 @@ async function resolveStoredModels({
         openCodeZenMetadataById.get(model.upstreamModel)
       )
     )
+  const configuredOpenCodeGoModels = openCodeGoSettings
+    .filter((model) => model.enabled)
+    .map((model) =>
+      openCodeGoSettingToManagedModel(
+        model,
+        openCodeGoMetadataById.get(model.upstreamModel)
+      )
+    )
   const configuredOllamaCloudModels = ollamaCloudSettings
     .filter((model) => model.enabled)
     .map(ollamaCloudSettingToManagedModel)
@@ -792,6 +808,7 @@ async function resolveStoredModels({
       ...configuredOpenRouterModels,
       ...configuredOllamaCloudModels,
       ...configuredOpenCodeZenModels,
+      ...configuredOpenCodeGoModels,
     ],
     catalogModels: [
       ...enabledLiveOpenAIModels,
@@ -800,6 +817,7 @@ async function resolveStoredModels({
       ...configuredOpenRouterModels,
       ...configuredOllamaCloudModels,
       ...configuredOpenCodeZenModels,
+      ...configuredOpenCodeGoModels,
     ],
   }
 }

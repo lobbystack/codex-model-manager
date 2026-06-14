@@ -149,7 +149,11 @@ export async function addUsageLog(entry: UsageLogEntry) {
 }
 
 function estimatedCostForSummary(log: UsageLogEntry) {
-  if (log.provider !== "openai-pool" && log.provider !== "opencode-zen") {
+  if (
+    log.provider !== "openai-pool" &&
+    log.provider !== "opencode-zen" &&
+    log.provider !== "opencode-go"
+  ) {
     return log.estimatedCostUsd
   }
 

@@ -8,6 +8,7 @@ export type ProviderId =
   | "openai-pool"
   | "openrouter"
   | "opencode-zen"
+  | "opencode-go"
   | "ollama-cloud"
 
 export type ManagedModel = {
@@ -111,7 +112,9 @@ export type OpenCodeZenModelSetting = {
   inputModalities?: Array<string>
 }
 
-export type OllamaCloudModelSetting = {
+export type OpenCodeGoModelFamily = "chat" | "messages"
+
+export type OpenCodeGoModelSetting = {
   id: string
   displayName: string
   upstreamModel: string
@@ -123,6 +126,17 @@ export type OllamaCloudModelSetting = {
   inputModalities?: Array<string>
 }
 
+export type OllamaCloudModelSetting = {
+  id: string
+  displayName: string
+  upstreamModel: string
+  enabled: boolean
+  supportsReasoning?: boolean
+  supportedParameters?: Array<string>
+  contextWindow: number
+  outputLimit: number
+  inputModalities?: Array<string>
+}
 
 const TEXT_MODALITIES = ["text"]
 
@@ -220,6 +234,35 @@ export function inferOpenCodeZenReasoningCapability(
 
   if (upstreamModel.startsWith("kimi-")) {
     return { kind: "binary", enabledByDefault: true }
+  }
+
+  return { kind: "none" }
+}
+
+export function openCodeGoModelFamily(modelId: string): OpenCodeGoModelFamily {
+  const upstreamModel = modelId.replace(/^opencode-go\//, "")
+
+  if (
+    upstreamModel.startsWith("minimax-") ||
+    upstreamModel.startsWith("qwen")
+  ) {
+    return "messages"
+  }
+
+  return "chat"
+}
+
+export function inferOpenCodeGoReasoningCapability(
+  modelId: string
+): ReasoningCapability {
+  const upstreamModel = modelId.replace(/^opencode-go\//, "")
+
+  if (upstreamModel.startsWith("kimi-")) {
+    return { kind: "binary", enabledByDefault: true }
+  }
+
+  if (upstreamModel.startsWith("qwen")) {
+    return { kind: "budget" }
   }
 
   return { kind: "none" }
@@ -345,6 +388,35 @@ export function openCodeZenSettingToManagedModel(
     id: model.id,
     displayName: model.displayName,
     provider: "opencode-zen",
+    upstreamModel: model.upstreamModel,
+    enabled: model.enabled,
+    supportsResponses: true,
+    supportsChatCompletions: family === "chat",
+    supportsReasoning:
+      model.supportsReasoning ?? supportsReasoning(reasoningCapability),
+    supportedParameters: model.supportedParameters || [],
+    reasoningCapability,
+    contextWindow: model.contextWindow,
+    outputLimit: model.outputLimit,
+    inputModalities: resolveZenInputModalities({
+      modelId: model.id,
+      metadata,
+      storedModalities: model.inputModalities,
+    }),
+  }
+}
+
+export function openCodeGoSettingToManagedModel(
+  model: OpenCodeGoModelSetting,
+  metadata?: ZenModelMetadata
+): ManagedModel {
+  const reasoningCapability = inferOpenCodeGoReasoningCapability(model.id)
+  const family = openCodeGoModelFamily(model.id)
+
+  return {
+    id: model.id,
+    displayName: model.displayName,
+    provider: "opencode-go",
     upstreamModel: model.upstreamModel,
     enabled: model.enabled,
     supportsResponses: true,

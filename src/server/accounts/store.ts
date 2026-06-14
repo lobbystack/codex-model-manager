@@ -9,12 +9,14 @@ import type {
   PublicApiKeyProvider,
   PublicChatGptModel,
   PublicOllamaCloudModel,
+  PublicOpenCodeGoModel,
   PublicOpenCodeZenModel,
   PublicOpenRouterModel,
   StoredAccount,
   StoredApiKeyProvider,
   StoredChatGptModel,
   StoredOllamaCloudModel,
+  StoredOpenCodeGoModel,
   StoredOpenCodeZenModel,
   StoredOpenRouterModel,
 } from "./types"
@@ -24,6 +26,7 @@ type StoreFile = {
   apiKeyProviders: Array<StoredApiKeyProvider>
   openRouterModels: Array<StoredOpenRouterModel>
   openCodeZenModels: Array<StoredOpenCodeZenModel>
+  openCodeGoModels: Array<StoredOpenCodeGoModel>
   ollamaCloudModels: Array<StoredOllamaCloudModel>
   chatGptModels: Array<StoredChatGptModel>
 }
@@ -101,6 +104,9 @@ async function readStore(): Promise<StoreFile> {
       openCodeZenModels: Array.isArray(parsed.openCodeZenModels)
         ? parsed.openCodeZenModels
         : [],
+      openCodeGoModels: Array.isArray(parsed.openCodeGoModels)
+        ? parsed.openCodeGoModels
+        : [],
       ollamaCloudModels: Array.isArray(parsed.ollamaCloudModels)
         ? parsed.ollamaCloudModels
         : [],
@@ -114,6 +120,7 @@ async function readStore(): Promise<StoreFile> {
       apiKeyProviders: [],
       openRouterModels: [],
       openCodeZenModels: [],
+      openCodeGoModels: [],
       ollamaCloudModels: [],
       chatGptModels: [],
     }
@@ -238,6 +245,13 @@ export async function listOpenCodeZenModelSettings(): Promise<
   return store.openCodeZenModels
 }
 
+export async function listOpenCodeGoModelSettings(): Promise<
+  Array<PublicOpenCodeGoModel>
+> {
+  const store = await readStore()
+  return store.openCodeGoModels
+}
+
 export async function listOllamaCloudModelSettings(): Promise<
   Array<PublicOllamaCloudModel>
 > {
@@ -318,6 +332,31 @@ export async function upsertOpenCodeZenModelSetting(
       store.openCodeZenModels[existing] = nextModel
     } else {
       store.openCodeZenModels.push(nextModel)
+    }
+
+    await writeStore(store)
+  })
+
+  await writeQueue
+  return nextModel
+}
+
+export async function upsertOpenCodeGoModelSetting(
+  model: Omit<StoredOpenCodeGoModel, "updatedAt">
+): Promise<PublicOpenCodeGoModel> {
+  const now = new Date().toISOString()
+  const nextModel = { ...model, updatedAt: now }
+
+  writeQueue = writeQueue.then(async () => {
+    const store = await readStore()
+    const existing = store.openCodeGoModels.findIndex(
+      (candidate) => candidate.id === nextModel.id
+    )
+
+    if (existing >= 0) {
+      store.openCodeGoModels[existing] = nextModel
+    } else {
+      store.openCodeGoModels.push(nextModel)
     }
 
     await writeStore(store)
@@ -443,6 +482,45 @@ export async function getOpenCodeZenKey() {
   }
 
   return decryptToken(provider.keyEncrypted)
+}
+
+export async function upsertOpenCodeGoKey(key: string) {
+  const trimmed = key.trim()
+
+  if (!trimmed) {
+    throw new Error("OpenCode Go API key is required")
+  }
+
+  const now = new Date().toISOString()
+  const provider: StoredApiKeyProvider = {
+    id: "opencode-go",
+    type: "opencode-go",
+    name: "OpenCode Go",
+    keyEncrypted: await encryptToken(trimmed),
+    keyPrefix: keyPrefix(trimmed),
+    createdAt: now,
+    updatedAt: now,
+    status: "active",
+  }
+
+  return upsertApiKeyProvider(provider)
+}
+
+export async function getOpenCodeGoKey() {
+  const store = await readStore()
+  const provider = store.apiKeyProviders.find(
+    (candidate) => candidate.id === "opencode-go"
+  )
+
+  if (!provider) {
+    return null
+  }
+
+  return decryptToken(provider.keyEncrypted)
+}
+
+export async function resolveOpenCodeGoKey() {
+  return (await getOpenCodeGoKey()) || (await getOpenCodeZenKey())
 }
 
 export async function upsertOllamaCloudKey(key: string) {

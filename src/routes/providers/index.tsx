@@ -20,7 +20,12 @@ export const Route = createFileRoute("/providers/")({
 })
 
 type ProviderStatus = "Active" | "Rate limited" | "Disconnected"
-type ProviderType = "ChatGPT" | "OpenRouter" | "OpenCode Zen" | "Ollama Cloud"
+type ProviderType =
+  | "ChatGPT"
+  | "OpenRouter"
+  | "OpenCode Zen"
+  | "OpenCode Go"
+  | "Ollama Cloud"
 
 interface Provider {
   id: string
@@ -40,7 +45,7 @@ type AccountResponse = {
   }>
   apiKeyProviders: Array<{
     id: string
-    type: "openrouter" | "opencode-zen" | "ollama-cloud"
+    type: "openrouter" | "opencode-zen" | "opencode-go" | "ollama-cloud"
     name: string
     keyPrefix: string
     status: "active"
@@ -88,9 +93,11 @@ function ProvidersPage() {
       type:
         provider.type === "opencode-zen"
           ? ("OpenCode Zen" as const)
-          : provider.type === "ollama-cloud"
-            ? ("Ollama Cloud" as const)
-            : ("OpenRouter" as const),
+          : provider.type === "opencode-go"
+            ? ("OpenCode Go" as const)
+            : provider.type === "ollama-cloud"
+              ? ("Ollama Cloud" as const)
+              : ("OpenRouter" as const),
     }))
     const nextProviders = [...chatGptProviders, ...apiKeyProviders]
 

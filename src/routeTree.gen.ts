@@ -27,6 +27,7 @@ import { Route as ApiSystemVersionRouteImport } from './routes/api/system/versio
 import { Route as ApiSystemOpenRouteImport } from './routes/api/system/open'
 import { Route as ApiProvidersOpenrouterRouteImport } from './routes/api/providers/openrouter'
 import { Route as ApiProvidersOpencodeZenRouteImport } from './routes/api/providers/opencode-zen'
+import { Route as ApiProvidersOpencodeGoRouteImport } from './routes/api/providers/opencode-go'
 import { Route as ApiProvidersOllamaCloudRouteImport } from './routes/api/providers/ollama-cloud'
 import { Route as ApiProvidersChatgptRouteImport } from './routes/api/providers/chatgpt'
 import { Route as ApiOauthStatusRouteImport } from './routes/api/oauth/status'
@@ -138,6 +139,11 @@ const ApiProvidersOpenrouterRoute = ApiProvidersOpenrouterRouteImport.update({
 const ApiProvidersOpencodeZenRoute = ApiProvidersOpencodeZenRouteImport.update({
   id: '/api/providers/opencode-zen',
   path: '/api/providers/opencode-zen',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProvidersOpencodeGoRoute = ApiProvidersOpencodeGoRouteImport.update({
+  id: '/api/providers/opencode-go',
+  path: '/api/providers/opencode-go',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiProvidersOllamaCloudRoute = ApiProvidersOllamaCloudRouteImport.update({
@@ -276,6 +282,7 @@ export interface FileRoutesByFullPath {
   '/api/oauth/status': typeof ApiOauthStatusRoute
   '/api/providers/chatgpt': typeof ApiProvidersChatgptRoute
   '/api/providers/ollama-cloud': typeof ApiProvidersOllamaCloudRoute
+  '/api/providers/opencode-go': typeof ApiProvidersOpencodeGoRoute
   '/api/providers/opencode-zen': typeof ApiProvidersOpencodeZenRoute
   '/api/providers/openrouter': typeof ApiProvidersOpenrouterRoute
   '/api/system/open': typeof ApiSystemOpenRoute
@@ -317,6 +324,7 @@ export interface FileRoutesByTo {
   '/api/oauth/status': typeof ApiOauthStatusRoute
   '/api/providers/chatgpt': typeof ApiProvidersChatgptRoute
   '/api/providers/ollama-cloud': typeof ApiProvidersOllamaCloudRoute
+  '/api/providers/opencode-go': typeof ApiProvidersOpencodeGoRoute
   '/api/providers/opencode-zen': typeof ApiProvidersOpencodeZenRoute
   '/api/providers/openrouter': typeof ApiProvidersOpenrouterRoute
   '/api/system/open': typeof ApiSystemOpenRoute
@@ -359,6 +367,7 @@ export interface FileRoutesById {
   '/api/oauth/status': typeof ApiOauthStatusRoute
   '/api/providers/chatgpt': typeof ApiProvidersChatgptRoute
   '/api/providers/ollama-cloud': typeof ApiProvidersOllamaCloudRoute
+  '/api/providers/opencode-go': typeof ApiProvidersOpencodeGoRoute
   '/api/providers/opencode-zen': typeof ApiProvidersOpencodeZenRoute
   '/api/providers/openrouter': typeof ApiProvidersOpenrouterRoute
   '/api/system/open': typeof ApiSystemOpenRoute
@@ -402,6 +411,7 @@ export interface FileRouteTypes {
     | '/api/oauth/status'
     | '/api/providers/chatgpt'
     | '/api/providers/ollama-cloud'
+    | '/api/providers/opencode-go'
     | '/api/providers/opencode-zen'
     | '/api/providers/openrouter'
     | '/api/system/open'
@@ -443,6 +453,7 @@ export interface FileRouteTypes {
     | '/api/oauth/status'
     | '/api/providers/chatgpt'
     | '/api/providers/ollama-cloud'
+    | '/api/providers/opencode-go'
     | '/api/providers/opencode-zen'
     | '/api/providers/openrouter'
     | '/api/system/open'
@@ -484,6 +495,7 @@ export interface FileRouteTypes {
     | '/api/oauth/status'
     | '/api/providers/chatgpt'
     | '/api/providers/ollama-cloud'
+    | '/api/providers/opencode-go'
     | '/api/providers/opencode-zen'
     | '/api/providers/openrouter'
     | '/api/system/open'
@@ -526,6 +538,7 @@ export interface RootRouteChildren {
   ApiOauthStatusRoute: typeof ApiOauthStatusRoute
   ApiProvidersChatgptRoute: typeof ApiProvidersChatgptRoute
   ApiProvidersOllamaCloudRoute: typeof ApiProvidersOllamaCloudRoute
+  ApiProvidersOpencodeGoRoute: typeof ApiProvidersOpencodeGoRoute
   ApiProvidersOpencodeZenRoute: typeof ApiProvidersOpencodeZenRoute
   ApiProvidersOpenrouterRoute: typeof ApiProvidersOpenrouterRoute
   ApiSystemOpenRoute: typeof ApiSystemOpenRoute
@@ -672,6 +685,13 @@ declare module '@tanstack/react-router' {
       path: '/api/providers/opencode-zen'
       fullPath: '/api/providers/opencode-zen'
       preLoaderRoute: typeof ApiProvidersOpencodeZenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/providers/opencode-go': {
+      id: '/api/providers/opencode-go'
+      path: '/api/providers/opencode-go'
+      fullPath: '/api/providers/opencode-go'
+      preLoaderRoute: typeof ApiProvidersOpencodeGoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/providers/ollama-cloud': {
@@ -870,6 +890,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiOauthStatusRoute: ApiOauthStatusRoute,
   ApiProvidersChatgptRoute: ApiProvidersChatgptRoute,
   ApiProvidersOllamaCloudRoute: ApiProvidersOllamaCloudRoute,
+  ApiProvidersOpencodeGoRoute: ApiProvidersOpencodeGoRoute,
   ApiProvidersOpencodeZenRoute: ApiProvidersOpencodeZenRoute,
   ApiProvidersOpenrouterRoute: ApiProvidersOpenrouterRoute,
   ApiSystemOpenRoute: ApiSystemOpenRoute,

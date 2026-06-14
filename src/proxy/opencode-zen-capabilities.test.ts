@@ -81,18 +81,32 @@ describe("OpenCode Zen capability metadata", () => {
     ).toEqual(["text", "image"])
     expect(
       resolveZenInputModalities({
+        modelId: "opencode-go/kimi-k2.7-code",
+      })
+    ).toEqual(["text", "image"])
+    expect(
+      resolveZenInputModalities({
         modelId: "opencode/deepseek-v4-flash-free",
       })
     ).toEqual(["text"])
-    expect(openCodeZenInputModalitiesFallback("opencode/claude-sonnet-4-6")).toEqual(
-      ["text", "image"]
-    )
+    expect(
+      openCodeZenInputModalitiesFallback("opencode/claude-sonnet-4-6")
+    ).toEqual(["text", "image"])
+  })
+
+  it("expands stale text-only stored modalities when provider supports images", () => {
+    expect(
+      resolveZenInputModalities({
+        modelId: "opencode-go/kimi-k2.7-code",
+        storedModalities: ["text"],
+      })
+    ).toEqual(["text", "image"])
   })
 
   it("clamps requested modalities to metadata-derived allowed values", () => {
-    expect(
-      clampZenInputModalities(["text", "image"], ["text"])
-    ).toEqual(["text"])
+    expect(clampZenInputModalities(["text", "image"], ["text"])).toEqual([
+      "text",
+    ])
     expect(
       clampZenInputModalities(["text", "image"], ["text", "image"])
     ).toEqual(["text", "image"])

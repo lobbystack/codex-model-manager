@@ -1,10 +1,11 @@
-import { openCodeZenModelFamily } from "./model-registry"
+import { openCodeGoModelFamily, openCodeZenModelFamily } from "./model-registry"
 import type { ManagedModel } from "./model-registry"
 import {
   getActiveAccount,
   getOllamaCloudKey as getStoredOllamaCloudKey,
   getOpenCodeZenKey as getStoredOpenCodeZenKey,
   getOpenRouterKey as getStoredOpenRouterKey,
+  resolveOpenCodeGoKey as resolveStoredOpenCodeGoKey,
 } from "@/server/accounts/store"
 import { getActiveAccessToken } from "@/server/oauth/service"
 
@@ -442,6 +443,14 @@ function outputToText(output: unknown) {
   return JSON.stringify(output ?? "")
 }
 
+function normalizeChatRole(role: string) {
+  if (role === "developer") {
+    return "system"
+  }
+
+  return role
+}
+
 function responsesInputToChatMessages(body: Record<string, unknown>) {
   const messages: Array<ChatMessage> = []
 
@@ -468,7 +477,9 @@ function responsesInputToChatMessages(body: Record<string, unknown>) {
     const value = item as Record<string, unknown>
 
     if (value.type === "message") {
-      const role = typeof value.role === "string" ? value.role : "user"
+      const role = normalizeChatRole(
+        typeof value.role === "string" ? value.role : "user"
+      )
       messages.push({ role, content: contentItemsToChatContent(value.content) })
       continue
     }
@@ -802,6 +813,15 @@ async function openCodeZenKey(input: UpstreamRequest) {
   )
 }
 
+async function openCodeGoKey(input: UpstreamRequest) {
+  return (
+    (await resolveStoredOpenCodeGoKey()) ||
+    getEnv("OPENCODE_GO_API_KEY") ||
+    getEnv("OPENCODE_ZEN_API_KEY") ||
+    getBearerToken(input.request)
+  )
+}
+
 async function ollamaCloudKey(input: UpstreamRequest) {
   return (
     (await getStoredOllamaCloudKey()) ||
@@ -830,6 +850,19 @@ function missingOpenCodeZenKeyResponse() {
         message:
           "Add an OpenCode Zen provider key, set OPENCODE_ZEN_API_KEY, or pass a Bearer token to use OpenCode Zen models.",
         type: "missing_opencode_zen_key",
+      },
+    },
+    401
+  )
+}
+
+function missingOpenCodeGoKeyResponse() {
+  return json(
+    {
+      error: {
+        message:
+          "Add an OpenCode Go or Zen provider key, set OPENCODE_GO_API_KEY or OPENCODE_ZEN_API_KEY, or pass a Bearer token to use OpenCode Go models.",
+        type: "missing_opencode_go_key",
       },
     },
     401
@@ -912,6 +945,20 @@ export async function forwardChatCompletions(input: UpstreamRequest) {
 
     return forwardJson(
       "https://opencode.ai/zen/v1/chat/completions",
+      key,
+      input
+    )
+  }
+
+  if (input.model.provider === "opencode-go") {
+    const key = await openCodeGoKey(input)
+
+    if (!key) {
+      return missingOpenCodeGoKeyResponse()
+    }
+
+    return forwardJson(
+      "https://opencode.ai/zen/go/v1/chat/completions",
       key,
       input
     )
@@ -1412,9 +1459,11 @@ function anthropicUsageToResponseUsage(
 
 function buildAnthropicBody(input: UpstreamRequest) {
   const messages = responsesInputToChatMessages(input.body)
-  const system = contentToText(
-    messages.find((message) => message.role === "system")?.content
-  )
+  const system = messages
+    .filter((message) => message.role === "system")
+    .map((message) => contentToText(message.content))
+    .filter(Boolean)
+    .join("\n\n")
   const tools = responsesToolsToChatTools(input.body.tools)?.map((tool) => ({
     name: tool.function.name,
     description: tool.function.description,
@@ -1441,8 +1490,12 @@ function buildAnthropicBody(input: UpstreamRequest) {
   }
 }
 
-async function forwardOpenCodeZenMessages(input: UpstreamRequest, key: string) {
-  const response = await fetch("https://opencode.ai/zen/v1/messages", {
+async function forwardAnthropicMessages(
+  input: UpstreamRequest,
+  key: string,
+  messagesUrl: string
+) {
+  const response = await fetch(messagesUrl, {
     method: "POST",
     headers: cloneHeaders(input.request, key),
     body: JSON.stringify(buildAnthropicBody(input)),
@@ -1465,6 +1518,22 @@ async function forwardOpenCodeZenMessages(input: UpstreamRequest, key: string) {
     id,
     output,
     anthropicUsageToResponseUsage(data.usage)
+  )
+}
+
+async function forwardOpenCodeZenMessages(input: UpstreamRequest, key: string) {
+  return forwardAnthropicMessages(
+    input,
+    key,
+    "https://opencode.ai/zen/v1/messages"
+  )
+}
+
+async function forwardOpenCodeGoMessages(input: UpstreamRequest, key: string) {
+  return forwardAnthropicMessages(
+    input,
+    key,
+    "https://opencode.ai/zen/go/v1/messages"
   )
 }
 
@@ -2094,6 +2163,27 @@ async function forwardOpenCodeZenResponses(input: UpstreamRequest) {
   )
 }
 
+async function forwardOpenCodeGoResponses(input: UpstreamRequest) {
+  const key = await openCodeGoKey(input)
+
+  if (!key) {
+    return missingOpenCodeGoKeyResponse()
+  }
+
+  const family = openCodeGoModelFamily(input.model.id)
+
+  if (family === "messages") {
+    return forwardOpenCodeGoMessages(input, key)
+  }
+
+  return forwardChatCompatibleResponses(
+    input,
+    "https://opencode.ai/zen/go/v1/chat/completions",
+    key,
+    "OpenCode Go returned an empty stream."
+  )
+}
+
 async function forwardOllamaCloudResponses(input: UpstreamRequest) {
   const key = await ollamaCloudKey(input)
 
@@ -2128,6 +2218,10 @@ export async function forwardResponses(input: UpstreamRequest) {
 
   if (input.model.provider === "opencode-zen") {
     return forwardOpenCodeZenResponses(input)
+  }
+
+  if (input.model.provider === "opencode-go") {
+    return forwardOpenCodeGoResponses(input)
   }
 
   if (input.model.provider === "ollama-cloud") {
