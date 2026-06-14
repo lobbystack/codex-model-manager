@@ -1,3 +1,9 @@
+import {
+  openCodeZenInputModalitiesFallback,
+  resolveZenInputModalities,
+} from "./opencode-zen-capabilities"
+import type { ZenModelMetadata } from "./opencode-zen-capabilities"
+
 export type ProviderId =
   | "openai-pool"
   | "openrouter"
@@ -117,9 +123,8 @@ export type OllamaCloudModelSetting = {
   inputModalities?: Array<string>
 }
 
+
 const TEXT_MODALITIES = ["text"]
-const ZEN_INPUT_MODALITIES = ["text", "image"]
-const ZEN_VISION_MODEL_PREFIXES = ["claude-", "gemini-", "gpt-"]
 
 const DEFAULT_EFFORT_LEVELS: Array<ReasoningEffortLevel> = [
   "low",
@@ -197,15 +202,7 @@ export function openCodeZenModelFamily(
 }
 
 export function openCodeZenInputModalitiesForModel(modelId: string) {
-  const upstreamModel = modelId.replace(/^opencode\//, "")
-
-  if (
-    ZEN_VISION_MODEL_PREFIXES.some((prefix) => upstreamModel.startsWith(prefix))
-  ) {
-    return ZEN_INPUT_MODALITIES
-  }
-
-  return TEXT_MODALITIES
+  return openCodeZenInputModalitiesFallback(modelId)
 }
 
 export function inferOpenCodeZenReasoningCapability(
@@ -338,7 +335,8 @@ export function openRouterSettingToManagedModel(
 }
 
 export function openCodeZenSettingToManagedModel(
-  model: OpenCodeZenModelSetting
+  model: OpenCodeZenModelSetting,
+  metadata?: ZenModelMetadata
 ): ManagedModel {
   const reasoningCapability = inferOpenCodeZenReasoningCapability(model.id)
   const family = openCodeZenModelFamily(model.id)
@@ -357,7 +355,11 @@ export function openCodeZenSettingToManagedModel(
     reasoningCapability,
     contextWindow: model.contextWindow,
     outputLimit: model.outputLimit,
-    inputModalities: openCodeZenInputModalitiesForModel(model.id),
+    inputModalities: resolveZenInputModalities({
+      modelId: model.id,
+      metadata,
+      storedModalities: model.inputModalities,
+    }),
   }
 }
 

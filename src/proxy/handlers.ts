@@ -10,6 +10,7 @@ import {
   toOpenAIModelList,
 } from "./model-registry"
 import { toCodexModelCatalog } from "./codex-catalog"
+import { getModelsDevOpenCodeMetadata } from "./opencode-zen-capabilities"
 import {
   forwardChatCompletions,
   forwardCodexAutoReviewResponses,
@@ -724,6 +725,10 @@ async function resolveStoredModels({
           string,
           { supportedParameters: Array<string>; inputModalities: Array<string> }
         >()
+  const openCodeZenMetadataById =
+    includeProviderCapabilities && openCodeZenSettings.length > 0
+      ? await getModelsDevOpenCodeMetadata()
+      : new Map()
   const hasOpenRouterSettings = settings.length > 0
   const settingsById = new Map(settings.map((model) => [model.id, model]))
   const staticModels = managedModels.filter((model) => {
@@ -770,7 +775,12 @@ async function resolveStoredModels({
     })
   const configuredOpenCodeZenModels = openCodeZenSettings
     .filter((model) => model.enabled)
-    .map(openCodeZenSettingToManagedModel)
+    .map((model) =>
+      openCodeZenSettingToManagedModel(
+        model,
+        openCodeZenMetadataById.get(model.upstreamModel)
+      )
+    )
   const configuredOllamaCloudModels = ollamaCloudSettings
     .filter((model) => model.enabled)
     .map(ollamaCloudSettingToManagedModel)
