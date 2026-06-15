@@ -5,12 +5,21 @@ import {
   CircleDollarSign,
   Hash,
   ReceiptText,
+  RotateCcw,
 } from "lucide-react"
 import { useEffect, useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   Pagination,
   PaginationContent,
@@ -52,6 +61,7 @@ type InstallConfigResponse = {
   path?: string
   backupPath?: string | null
   installed?: boolean
+  changed?: boolean
   error?: {
     message?: string
   }
@@ -115,9 +125,10 @@ function App() {
   const [requestLogTotal, setRequestLogTotal] = useState(0)
   const [requestLogPage, setRequestLogPage] = useState(0)
   const [installStatus, setInstallStatus] = useState<
-    "idle" | "installing" | "installed" | "error"
+    "idle" | "installing" | "installed" | "resetting" | "error"
   >("idle")
   const [installMessage, setInstallMessage] = useState<string | null>(null)
+  const [resetDialogOpen, setResetDialogOpen] = useState(false)
 
   useEffect(() => {
     async function loadUsage() {
@@ -194,6 +205,40 @@ function App() {
     }
   }
 
+  const resetConfig = async () => {
+    setInstallStatus("resetting")
+    setInstallMessage(null)
+
+    try {
+      const response = await fetch("/api/codex/install-config", {
+        method: "DELETE",
+      })
+      const data = (await response.json()) as InstallConfigResponse
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error?.message || "Unable to reset config.")
+      }
+
+      setInstallStatus("idle")
+      setInstallMessage(
+        data.backupPath
+          ? `Reset complete. Backup saved to ${data.backupPath}`
+          : "Reset complete."
+      )
+      setResetDialogOpen(false)
+    } catch (error) {
+      setInstallStatus("installed")
+      setInstallMessage(
+        error instanceof Error ? error.message : "Unable to reset config."
+      )
+    }
+  }
+
+  const configInstalled =
+    installStatus === "installed" || installStatus === "resetting"
+  const configActionBusy =
+    installStatus === "installing" || installStatus === "resetting"
+
   const metricCards = [
     {
       title: "Requests",
@@ -244,19 +289,19 @@ function App() {
           </Badge>
           <Button
             size="sm"
-            variant={installStatus === "installed" ? "outline" : "default"}
+            variant={configInstalled ? "outline" : "default"}
             className={
-              installStatus === "installed"
+              configInstalled
                 ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
                 : undefined
             }
-            disabled={installStatus === "installing"}
+            disabled={configActionBusy}
             title={installMessage || undefined}
             onClick={() => void installConfig()}
           >
             {installStatus === "installing" ? (
               "Installing..."
-            ) : installStatus === "installed" ? (
+            ) : configInstalled ? (
               <>
                 <Check className="size-3.5" />
                 Config installed
@@ -265,8 +310,49 @@ function App() {
               "Install config"
             )}
           </Button>
+          {configInstalled ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-destructive/20 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              disabled={configActionBusy}
+              onClick={() => setResetDialogOpen(true)}
+            >
+              <RotateCcw data-icon="inline-start" />
+              {installStatus === "resetting" ? "Resetting..." : "Reset config"}
+            </Button>
+          ) : null}
         </div>
       </header>
+      <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <DialogContent showCloseButton={!configActionBusy}>
+          <DialogHeader>
+            <DialogTitle>Reset Codex config</DialogTitle>
+            <DialogDescription>
+              This removes the Codex Model Manager provider from your Codex
+              config, including the top-level <code>model_provider</code> entry
+              and the <code>codex_model_manager</code> provider table. A backup
+              of the current file is saved before any changes are made.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={configActionBusy}
+              onClick={() => setResetDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={configActionBusy}
+              onClick={() => void resetConfig()}
+            >
+              {installStatus === "resetting" ? "Resetting..." : "Confirm reset"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <main className="grid w-full flex-1 grid-cols-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
         <div className="col-span-full grid w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
           {metricCards.map((metric) => {

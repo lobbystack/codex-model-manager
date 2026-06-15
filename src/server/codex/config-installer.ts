@@ -1,4 +1,11 @@
-import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises"
+import {
+  copyFile,
+  mkdir,
+  readFile,
+  stat,
+  unlink,
+  writeFile,
+} from "node:fs/promises"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
 
@@ -89,6 +96,48 @@ function installCodexConfig(content: string) {
   return `${upsertProviderTable(upsertTopLevelModelProvider(lines)).join("\n").trimEnd()}\n`
 }
 
+function isOurModelProviderLine(line: string) {
+  return (
+    isKeyLine(line, "model_provider") &&
+    new RegExp(`=\\s*${tomlValue(PROVIDER_ID)}\\s*$`).test(line)
+  )
+}
+
+function removeTopLevelOurModelProvider(lines: Array<string>) {
+  const firstTableIndex = lines.findIndex(isTableHeader)
+  const topLevelEnd = firstTableIndex === -1 ? lines.length : firstTableIndex
+
+  return lines.filter(
+    (line, index) => index >= topLevelEnd || !isOurModelProviderLine(line)
+  )
+}
+
+function removeProviderTable(lines: Array<string>) {
+  const sectionStart = lines.findIndex((line) => line.trim() === PROVIDER_TABLE)
+
+  if (sectionStart === -1) {
+    return lines
+  }
+
+  const sectionEnd = lines.findIndex(
+    (line, index) => index > sectionStart && isTableHeader(line)
+  )
+  const end = sectionEnd === -1 ? lines.length : sectionEnd
+
+  return [...lines.slice(0, sectionStart), ...lines.slice(end)]
+}
+
+function uninstallCodexConfig(content: string) {
+  const lines = content.trim() ? content.replace(/\r\n/g, "\n").split("\n") : []
+  const nextContent = removeProviderTable(
+    removeTopLevelOurModelProvider(lines)
+  )
+    .join("\n")
+    .trimEnd()
+
+  return nextContent ? `${nextContent}\n` : ""
+}
+
 export async function getCodexModelManagerConfigStatus() {
   const path = codexConfigPath()
 
@@ -123,5 +172,32 @@ export async function installCodexModelManagerConfig() {
     path,
     backupPath,
     changed: nextContent !== previousContent,
+  }
+}
+
+export async function uninstallCodexModelManagerConfig() {
+  const path = codexConfigPath()
+
+  if (!(await fileExists(path))) {
+    return { path, backupPath: null, changed: false, installed: false }
+  }
+
+  const previousContent = await readFile(path, "utf8")
+  const nextContent = uninstallCodexConfig(previousContent)
+  const backupPath = `${path}.bak-cmm-${timestamp()}`
+
+  await copyFile(path, backupPath)
+
+  if (nextContent) {
+    await writeFile(path, nextContent, "utf8")
+  } else {
+    await unlink(path)
+  }
+
+  return {
+    path,
+    backupPath,
+    changed: nextContent !== previousContent,
+    installed: false,
   }
 }
