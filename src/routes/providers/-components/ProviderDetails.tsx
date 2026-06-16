@@ -29,6 +29,9 @@ type UsageLimitResponse = {
   usage?: {
     primaryWindow: UsageLimitWindow | null
     secondaryWindow: UsageLimitWindow | null
+    weeklyOnly?: boolean
+    hasCredits?: boolean
+    creditsBalance?: number | null
   }
 }
 
@@ -83,10 +86,14 @@ function UsageLimitMeter({
           {formatWholePercent(remaining)}
         </span>
       </div>
-      <Progress
-        value={remaining ?? 0}
-        className="[&_[data-slot=progress-indicator]]:bg-emerald-500 [&_[data-slot=progress-track]]:h-2 [&_[data-slot=progress-track]]:bg-emerald-950/40"
-      />
+      {remaining === null ? (
+        <div className="h-2 rounded-full bg-emerald-950/40" />
+      ) : (
+        <Progress
+          value={remaining}
+          className="[&_[data-slot=progress-indicator]]:bg-emerald-500 [&_[data-slot=progress-track]]:h-2 [&_[data-slot=progress-track]]:bg-emerald-950/40"
+        />
+      )}
       <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
         <Clock className="size-4" />
         <span>
@@ -127,9 +134,19 @@ export function ChatGptUsageCard({ accountId }: { accountId: string }) {
         </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-6 lg:grid-cols-2">
-        <UsageLimitMeter label="5h" window={usageLimit?.primaryWindow} />
+        {!usageLimit?.weeklyOnly ? (
+          <UsageLimitMeter label="5h" window={usageLimit?.primaryWindow} />
+        ) : null}
         <UsageLimitMeter label="Weekly" window={usageLimit?.secondaryWindow} />
       </CardContent>
+      {usageLimit?.hasCredits ? (
+        <CardContent className="border-t pt-4 text-sm text-muted-foreground">
+          {usageLimit.creditsBalance !== null &&
+          usageLimit.creditsBalance !== undefined
+            ? `Credits available: ${usageLimit.creditsBalance}`
+            : "Additional credits available"}
+        </CardContent>
+      ) : null}
     </Card>
   )
 }

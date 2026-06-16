@@ -18,6 +18,11 @@ export type UsageLimitSummary = {
   planType: string | null
   primaryWindow: UsageLimitWindow | null
   secondaryWindow: UsageLimitWindow | null
+  weeklyOnly?: boolean
+  limitReached?: boolean | null
+  allowed?: boolean | null
+  creditsBalance?: number | null
+  hasCredits?: boolean
 }
 
 let refreshStarted = false

@@ -1,6 +1,7 @@
 import { handleQuotaExceeded, handleRateLimit, syncRuntimeUsage } from "./logic"
 import { getAccountRuntime } from "./runtime"
 import type { UsageLimitSummary } from "@/server/codex/usage-limit"
+import { deriveQuotaExceeded, parseWhamUsagePayload } from "@/server/codex/usage-parse"
 import {
   getAccountById,
   listPoolAccounts,
@@ -17,27 +18,6 @@ type UsageCacheEntry = {
 }
 
 const usageCache = new Map<string, UsageCacheEntry>()
-
-function numberOrNull(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value) ? value : null
-}
-
-function usageWindow(payload: Record<string, unknown> | null | undefined) {
-  if (!payload) {
-    return null
-  }
-
-  const usedPercent = numberOrNull(payload.used_percent)
-
-  return {
-    usedPercent,
-    remainingPercent:
-      usedPercent === null ? null : Math.max(0, Math.min(100, 100 - usedPercent)),
-    resetAt: numberOrNull(payload.reset_at),
-    limitWindowSeconds: numberOrNull(payload.limit_window_seconds),
-    resetAfterSeconds: numberOrNull(payload.reset_after_seconds),
-  }
-}
 
 async function fetchUsageForAccount(accountId: string): Promise<UsageLimitSummary> {
   const account = await getAccountById(accountId)
@@ -78,20 +58,7 @@ async function fetchUsageForAccount(accountId: string): Promise<UsageLimitSummar
   }
 
   const payload = (await response.json()) as Record<string, unknown>
-  const rateLimit =
-    payload.rate_limit && typeof payload.rate_limit === "object"
-      ? (payload.rate_limit as Record<string, unknown>)
-      : null
-
-  return {
-    planType: typeof payload.plan_type === "string" ? payload.plan_type : null,
-    primaryWindow: usageWindow(
-      rateLimit?.primary_window as Record<string, unknown> | null | undefined
-    ),
-    secondaryWindow: usageWindow(
-      rateLimit?.secondary_window as Record<string, unknown> | null | undefined
-    ),
-  }
+  return parseWhamUsagePayload(payload)
 }
 
 export async function getCachedUsageForAccount(
@@ -129,23 +96,32 @@ async function applyUsageStatus(accountId: string, summary: UsageLimitSummary) {
     secondaryResetAt: summary.secondaryWindow?.resetAt ?? null,
   })
 
-  const primaryUsed = summary.primaryWindow?.usedPercent
-  const secondaryUsed = summary.secondaryWindow?.usedPercent
   const runtime = getAccountRuntime(accountId)
   const now = Date.now() / 1000
+  const primaryUsed = summary.primaryWindow?.usedPercent
+  const primaryExhausted =
+    primaryUsed !== null && primaryUsed !== undefined && primaryUsed >= 100
 
-  if (
-    (primaryUsed !== null &&
-      primaryUsed !== undefined &&
-      primaryUsed >= 100) ||
-    (secondaryUsed !== null &&
-      secondaryUsed !== undefined &&
-      secondaryUsed >= 100)
-  ) {
+  if (deriveQuotaExceeded(summary)) {
     handleQuotaExceeded(accountId, {
-      resets_at: summary.secondaryWindow?.resetAt ?? summary.primaryWindow?.resetAt ?? undefined,
+      resets_at:
+        summary.secondaryWindow?.resetAt ??
+        summary.primaryWindow?.resetAt ??
+        undefined,
     })
     await updateAccountStatus(accountId, "quota_exceeded")
+    return
+  }
+
+  if (
+    primaryExhausted &&
+    summary.limitReached !== false &&
+    !summary.hasCredits
+  ) {
+    handleRateLimit(accountId, {
+      resets_at: summary.primaryWindow?.resetAt ?? undefined,
+    })
+    await updateAccountStatus(accountId, "rate_limited")
     return
   }
 
@@ -161,6 +137,7 @@ async function applyUsageStatus(accountId: string, summary: UsageLimitSummary) {
 }
 
 export async function refreshUsageForAccount(accountId: string) {
+  invalidateUsageCache(accountId)
   const summary = await getCachedUsageForAccount(accountId)
   await applyUsageStatus(accountId, summary)
   return summary
