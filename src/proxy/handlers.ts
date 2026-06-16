@@ -20,15 +20,16 @@ import {
 import type { CodexModelInfo, ManagedModel } from "./model-registry"
 import type { UsageTokens } from "@/server/usage/types"
 import {
-  getActiveAccount,
   listChatGptModelSettings,
   listOllamaCloudModelSettings,
   listOpenCodeGoModelSettings,
   listOpenCodeZenModelSettings,
   listOpenRouterModelSettings,
+  listPoolAccounts,
 } from "@/server/accounts/store"
+import { selectAccountForRequest } from "@/server/balancer"
 import { writeCodexModelCatalog } from "@/server/codex/catalog-file"
-import { getActiveAccessToken } from "@/server/oauth/service"
+import { getAccessTokenForAccount } from "@/server/oauth/service"
 import {
   calculateEstimatedCostUsd,
   calculateRealCostUsd,
@@ -91,44 +92,53 @@ function shouldRefreshChatGptCodexModels() {
 }
 
 async function fetchLiveChatGptCodexModels(): Promise<Array<ManagedModel>> {
-  const account = await getActiveAccount()
+  const triedAccountIds = new Set<string>()
 
-  if (!account) {
-    return []
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const selection = await selectAccountForRequest(triedAccountIds)
+
+    if (!selection.account) {
+      break
+    }
+
+    const account = selection.account
+    triedAccountIds.add(account.id)
+
+    try {
+      const token = await getAccessTokenForAccount(account)
+
+      if (!token) {
+        continue
+      }
+
+      const headers = new Headers({
+        accept: "application/json",
+        authorization: `Bearer ${token}`,
+      })
+
+      if (account.chatgptAccountId) {
+        headers.set("chatgpt-account-id", account.chatgptAccountId)
+      }
+
+      const response = await fetch(
+        "https://chatgpt.com/backend-api/codex/models?client_version=0.0.0",
+        { headers }
+      )
+
+      if (!response.ok) {
+        continue
+      }
+
+      const data = (await response.json()) as { models?: Array<CodexModelInfo> }
+      return (data.models || [])
+        .filter((model) => typeof model.slug === "string" && model.slug)
+        .map(codexModelInfoToManagedModel)
+    } catch {
+      continue
+    }
   }
 
-  try {
-    const token = await getActiveAccessToken()
-
-    if (!token) {
-      return []
-    }
-
-    const headers = new Headers({
-      accept: "application/json",
-      authorization: `Bearer ${token}`,
-    })
-
-    if (account.chatgptAccountId) {
-      headers.set("chatgpt-account-id", account.chatgptAccountId)
-    }
-
-    const response = await fetch(
-      "https://chatgpt.com/backend-api/codex/models?client_version=0.0.0",
-      { headers }
-    )
-
-    if (!response.ok) {
-      return []
-    }
-
-    const data = (await response.json()) as { models?: Array<CodexModelInfo> }
-    return (data.models || [])
-      .filter((model) => typeof model.slug === "string" && model.slug)
-      .map(codexModelInfoToManagedModel)
-  } catch {
-    return []
-  }
+  return []
 }
 
 export async function fetchChatGptCodexModels(): Promise<Array<ManagedModel>> {
@@ -851,9 +861,9 @@ async function resolveRequestModel(modelId: string) {
     return null
   }
 
-  const account = await getActiveAccount()
+  const poolAccounts = await listPoolAccounts()
 
-  if (!account && !hasOpenAICredentials()) {
+  if (poolAccounts.length === 0 && !hasOpenAICredentials()) {
     return null
   }
 

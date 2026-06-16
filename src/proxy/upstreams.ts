@@ -1,7 +1,7 @@
 import { openCodeGoModelFamily, openCodeZenModelFamily } from "./model-registry"
+import { forwardWithChatGptAccountFailover } from "./chatgpt-failover"
 import type { ManagedModel } from "./model-registry"
 import {
-  getActiveAccount,
   getOllamaCloudKey as getStoredOllamaCloudKey,
   getOpenCodeZenKey as getStoredOpenCodeZenKey,
   getOpenRouterKey as getStoredOpenRouterKey,
@@ -883,7 +883,7 @@ function missingOllamaCloudKeyResponse() {
 }
 
 async function getOpenAIBearer() {
-  return getOpenAIKey() || (await getActiveAccessToken())
+  return (await getActiveAccessToken()) || getOpenAIKey()
 }
 
 async function forwardJson(
@@ -2228,11 +2228,10 @@ export async function forwardResponses(input: UpstreamRequest) {
     return forwardOllamaCloudResponses(input)
   }
 
-  const account = await getActiveAccount()
-  const accountToken = account ? await getActiveAccessToken() : null
-  const key = accountToken || getOpenAIKey()
+  const accountToken = await getActiveAccessToken()
+  const envKey = getOpenAIKey()
 
-  if (!key) {
+  if (!accountToken && !envKey) {
     return json(
       {
         error: {
@@ -2245,56 +2244,34 @@ export async function forwardResponses(input: UpstreamRequest) {
     )
   }
 
-  if (accountToken && account) {
+  if (accountToken) {
     const upstreamBody = {
       ...input.body,
       model: input.model.upstreamModel,
     }
-    const response = await fetch(
-      "https://chatgpt.com/backend-api/codex/responses",
-      {
+
+    return forwardWithChatGptAccountFailover((account, token) =>
+      fetch("https://chatgpt.com/backend-api/codex/responses", {
         method: "POST",
         headers: cloneCodexResponsesHeaders(
           input.request,
-          key,
+          token,
           account.chatgptAccountId
         ),
         body: JSON.stringify(upstreamBody),
-      }
+      })
     )
-
-    return new Response(response.body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: response.headers,
-    })
   }
 
-  return forwardJson("https://api.openai.com/v1/responses", key, input)
+  return forwardJson("https://api.openai.com/v1/responses", envKey!, input)
 }
 
 export async function forwardCodexAutoReviewResponses(
   request: Request,
   body: Record<string, unknown>
 ) {
-  const account = await getActiveAccount()
-  const accountToken = account ? await getActiveAccessToken() : null
-
-  if (!account || !accountToken) {
-    return json(
-      {
-        error: {
-          message: "Connect a ChatGPT account to use Codex auto-review.",
-          type: "missing_chatgpt_account",
-        },
-      },
-      401
-    )
-  }
-
-  let response: Response
-  try {
-    response = await fetch("https://chatgpt.com/backend-api/codex/responses", {
+  return forwardWithChatGptAccountFailover((account, accountToken) =>
+    fetch("https://chatgpt.com/backend-api/codex/responses", {
       method: "POST",
       headers: cloneCodexResponsesHeaders(
         request,
@@ -2303,45 +2280,13 @@ export async function forwardCodexAutoReviewResponses(
       ),
       body: JSON.stringify(normalizeCodexResponsesPayload(body)),
     })
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "fetch failed"
-    return json(
-      {
-        error: {
-          message: `Codex auto-review upstream request failed: ${message}`,
-          type: "upstream_fetch_failed",
-        },
-      },
-      502
-    )
-  }
-
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers: response.headers,
-  })
+  )
 }
 
 export async function forwardCodexControlRequest(
   request: Request,
   path: string
 ) {
-  const account = await getActiveAccount()
-  const token = account ? await getActiveAccessToken() : null
-
-  if (!account || !token) {
-    return json(
-      {
-        error: {
-          message: "Connect a ChatGPT account to use Codex control routes.",
-          type: "missing_chatgpt_account",
-        },
-      },
-      401
-    )
-  }
-
   const sourceUrl = new URL(request.url)
   const normalizedPath = path.replace(/^\/+|\/+$/g, "")
   const upstreamPath = normalizedPath.startsWith("wham/")
@@ -2357,24 +2302,27 @@ export async function forwardCodexControlRequest(
     normalizedPath === "responses/compact"
       ? normalizeCodexCompactPayload(body)
       : body
-  const response = await fetch(upstreamUrl, {
-    method,
-    headers: cloneCodexControlHeaders(
-      request,
-      token,
-      account.chatgptAccountId,
-      hasBody
-    ),
-    body:
-      upstreamBody &&
-      (typeof upstreamBody === "string" || upstreamBody.byteLength > 0)
-        ? upstreamBody
-        : undefined,
-  })
 
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers: codexControlResponseHeaders(response.headers),
-  })
+  return forwardWithChatGptAccountFailover((account, token) =>
+    fetch(upstreamUrl, {
+      method,
+      headers: cloneCodexControlHeaders(
+        request,
+        token,
+        account.chatgptAccountId,
+        hasBody
+      ),
+      body:
+        upstreamBody &&
+        (typeof upstreamBody === "string" || upstreamBody.byteLength > 0)
+          ? upstreamBody
+          : undefined,
+    }).then((response) =>
+      new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: codexControlResponseHeaders(response.headers),
+      })
+    )
+  )
 }

@@ -6,11 +6,13 @@ import { getChatGptUsageLimit } from "@/server/codex/usage-limit"
 export const Route = createFileRoute("/api/codex/usage-limit")({
   server: {
     handlers: {
-      GET: async () => {
+      GET: async ({ request }) => {
+        const accountId = new URL(request.url).searchParams.get("accountId")
+
         try {
           return apiJson({
             ok: true,
-            usage: await getChatGptUsageLimit(),
+            usage: await getChatGptUsageLimit(accountId),
           })
         } catch (error) {
           return apiJson(

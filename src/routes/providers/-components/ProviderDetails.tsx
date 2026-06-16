@@ -16,6 +16,7 @@ interface Provider {
 
 interface ProviderDetailsProps {
   provider: Provider
+  onRemoved?: () => void
 }
 
 type UsageLimitWindow = {
@@ -96,14 +97,16 @@ function UsageLimitMeter({
   )
 }
 
-export function ChatGptUsageCard() {
+export function ChatGptUsageCard({ accountId }: { accountId: string }) {
   const [usageLimit, setUsageLimit] = useState<
     UsageLimitResponse["usage"] | null
   >(null)
 
   useEffect(() => {
     async function loadUsageLimit() {
-      const response = await fetch("/api/codex/usage-limit")
+      const response = await fetch(
+        `/api/codex/usage-limit?accountId=${encodeURIComponent(accountId)}`
+      )
 
       if (!response.ok) {
         return
@@ -114,7 +117,7 @@ export function ChatGptUsageCard() {
     }
 
     void loadUsageLimit()
-  }, [])
+  }, [accountId])
 
   return (
     <Card>
@@ -131,11 +134,36 @@ export function ChatGptUsageCard() {
   )
 }
 
-export function ProviderDetails({ provider }: ProviderDetailsProps) {
+export function ProviderDetails({
+  provider,
+  onRemoved,
+}: ProviderDetailsProps) {
+  const [isRemoving, setIsRemoving] = useState(false)
   const isChatGPT = provider.type === "ChatGPT"
   const isOpenCodeZen = provider.type === "OpenCode Zen"
   const isOpenCodeGo = provider.type === "OpenCode Go"
   const isOllamaCloud = provider.type === "Ollama Cloud"
+
+  async function handleRemove() {
+    if (!isChatGPT || isRemoving) {
+      return
+    }
+
+    setIsRemoving(true)
+
+    try {
+      const response = await fetch(
+        `/api/accounts/${encodeURIComponent(provider.id)}`,
+        { method: "DELETE" }
+      )
+
+      if (response.ok) {
+        onRemoved?.()
+      }
+    } finally {
+      setIsRemoving(false)
+    }
+  }
 
   return (
     <div className="flex animate-in flex-col gap-6 duration-300 fade-in-50">
@@ -146,19 +174,23 @@ export function ProviderDetails({ provider }: ProviderDetailsProps) {
           </h2>
           <p className="text-sm text-muted-foreground">{provider.name}</p>
         </div>
-        <Button
-          className="border-destructive/20 text-destructive hover:bg-destructive/10 hover:text-destructive"
-          size="sm"
-          variant="outline"
-        >
-          <Trash2 data-icon="inline-start" />
-          Remove
-        </Button>
+        {isChatGPT ? (
+          <Button
+            className="border-destructive/20 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            disabled={isRemoving}
+            onClick={() => void handleRemove()}
+            size="sm"
+            variant="outline"
+          >
+            <Trash2 data-icon="inline-start" />
+            {isRemoving ? "Removing..." : "Remove"}
+          </Button>
+        ) : null}
       </div>
 
       {isChatGPT ? (
         <>
-          <ChatGptUsageCard />
+          <ChatGptUsageCard accountId={provider.id} />
 
           <Card>
             <CardHeader className="pb-3">

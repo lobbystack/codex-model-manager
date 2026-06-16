@@ -37,6 +37,7 @@ import { Route as ApiOauthCompleteRouteImport } from './routes/api/oauth/complet
 import { Route as ApiCodexUsageLimitRouteImport } from './routes/api/codex/usage-limit'
 import { Route as ApiCodexModelCatalogRouteImport } from './routes/api/codex/model-catalog'
 import { Route as ApiCodexInstallConfigRouteImport } from './routes/api/codex/install-config'
+import { Route as ApiAccountsAccountIdRouteImport } from './routes/api/accounts/$accountId'
 import { Route as BackendApiWhamAgentIdentitiesJwksRouteImport } from './routes/backend-api/wham/agent-identities/jwks'
 import { Route as BackendApiCodexSafetyArcRouteImport } from './routes/backend-api/codex/safety/arc'
 import { Route as BackendApiCodexResponsesCompactRouteImport } from './routes/backend-api/codex/responses/compact'
@@ -191,6 +192,11 @@ const ApiCodexInstallConfigRoute = ApiCodexInstallConfigRouteImport.update({
   path: '/api/codex/install-config',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAccountsAccountIdRoute = ApiAccountsAccountIdRouteImport.update({
+  id: '/$accountId',
+  path: '/$accountId',
+  getParentRoute: () => ApiAccountsRoute,
+} as any)
 const BackendApiWhamAgentIdentitiesJwksRoute =
   BackendApiWhamAgentIdentitiesJwksRouteImport.update({
     id: '/backend-api/wham/agent-identities/jwks',
@@ -265,7 +271,7 @@ const BackendApiCodexThreadGoalClearRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/health': typeof HealthRoute
-  '/api/accounts': typeof ApiAccountsRoute
+  '/api/accounts': typeof ApiAccountsRouteWithChildren
   '/api/models': typeof ApiModelsRoute
   '/api/usage': typeof ApiUsageRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
@@ -273,6 +279,7 @@ export interface FileRoutesByFullPath {
   '/v1/responses': typeof V1ResponsesRoute
   '/models/': typeof ModelsIndexRoute
   '/providers/': typeof ProvidersIndexRoute
+  '/api/accounts/$accountId': typeof ApiAccountsAccountIdRoute
   '/api/codex/install-config': typeof ApiCodexInstallConfigRoute
   '/api/codex/model-catalog': typeof ApiCodexModelCatalogRoute
   '/api/codex/usage-limit': typeof ApiCodexUsageLimitRoute
@@ -307,7 +314,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/health': typeof HealthRoute
-  '/api/accounts': typeof ApiAccountsRoute
+  '/api/accounts': typeof ApiAccountsRouteWithChildren
   '/api/models': typeof ApiModelsRoute
   '/api/usage': typeof ApiUsageRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
@@ -315,6 +322,7 @@ export interface FileRoutesByTo {
   '/v1/responses': typeof V1ResponsesRoute
   '/models': typeof ModelsIndexRoute
   '/providers': typeof ProvidersIndexRoute
+  '/api/accounts/$accountId': typeof ApiAccountsAccountIdRoute
   '/api/codex/install-config': typeof ApiCodexInstallConfigRoute
   '/api/codex/model-catalog': typeof ApiCodexModelCatalogRoute
   '/api/codex/usage-limit': typeof ApiCodexUsageLimitRoute
@@ -350,7 +358,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/health': typeof HealthRoute
-  '/api/accounts': typeof ApiAccountsRoute
+  '/api/accounts': typeof ApiAccountsRouteWithChildren
   '/api/models': typeof ApiModelsRoute
   '/api/usage': typeof ApiUsageRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
@@ -358,6 +366,7 @@ export interface FileRoutesById {
   '/v1/responses': typeof V1ResponsesRoute
   '/models/': typeof ModelsIndexRoute
   '/providers/': typeof ProvidersIndexRoute
+  '/api/accounts/$accountId': typeof ApiAccountsAccountIdRoute
   '/api/codex/install-config': typeof ApiCodexInstallConfigRoute
   '/api/codex/model-catalog': typeof ApiCodexModelCatalogRoute
   '/api/codex/usage-limit': typeof ApiCodexUsageLimitRoute
@@ -402,6 +411,7 @@ export interface FileRouteTypes {
     | '/v1/responses'
     | '/models/'
     | '/providers/'
+    | '/api/accounts/$accountId'
     | '/api/codex/install-config'
     | '/api/codex/model-catalog'
     | '/api/codex/usage-limit'
@@ -444,6 +454,7 @@ export interface FileRouteTypes {
     | '/v1/responses'
     | '/models'
     | '/providers'
+    | '/api/accounts/$accountId'
     | '/api/codex/install-config'
     | '/api/codex/model-catalog'
     | '/api/codex/usage-limit'
@@ -486,6 +497,7 @@ export interface FileRouteTypes {
     | '/v1/responses'
     | '/models/'
     | '/providers/'
+    | '/api/accounts/$accountId'
     | '/api/codex/install-config'
     | '/api/codex/model-catalog'
     | '/api/codex/usage-limit'
@@ -521,7 +533,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   HealthRoute: typeof HealthRoute
-  ApiAccountsRoute: typeof ApiAccountsRoute
+  ApiAccountsRoute: typeof ApiAccountsRouteWithChildren
   ApiModelsRoute: typeof ApiModelsRoute
   ApiUsageRoute: typeof ApiUsageRouteWithChildren
   AuthCallbackRoute: typeof AuthCallbackRoute
@@ -757,6 +769,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCodexInstallConfigRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/accounts/$accountId': {
+      id: '/api/accounts/$accountId'
+      path: '/$accountId'
+      fullPath: '/api/accounts/$accountId'
+      preLoaderRoute: typeof ApiAccountsAccountIdRouteImport
+      parentRoute: typeof ApiAccountsRoute
+    }
     '/backend-api/wham/agent-identities/jwks': {
       id: '/backend-api/wham/agent-identities/jwks'
       path: '/backend-api/wham/agent-identities/jwks'
@@ -844,6 +863,18 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ApiAccountsRouteChildren {
+  ApiAccountsAccountIdRoute: typeof ApiAccountsAccountIdRoute
+}
+
+const ApiAccountsRouteChildren: ApiAccountsRouteChildren = {
+  ApiAccountsAccountIdRoute: ApiAccountsAccountIdRoute,
+}
+
+const ApiAccountsRouteWithChildren = ApiAccountsRoute._addFileChildren(
+  ApiAccountsRouteChildren,
+)
+
 interface ApiUsageRouteChildren {
   ApiUsageLogsRoute: typeof ApiUsageLogsRoute
 }
@@ -873,7 +904,7 @@ const BackendApiCodexResponsesRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   HealthRoute: HealthRoute,
-  ApiAccountsRoute: ApiAccountsRoute,
+  ApiAccountsRoute: ApiAccountsRouteWithChildren,
   ApiModelsRoute: ApiModelsRoute,
   ApiUsageRoute: ApiUsageRouteWithChildren,
   AuthCallbackRoute: AuthCallbackRoute,

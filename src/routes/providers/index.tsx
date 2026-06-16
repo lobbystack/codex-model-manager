@@ -41,7 +41,13 @@ type AccountResponse = {
     id: string
     email: string
     planType: string
-    status: "active" | "paused" | "deactivated"
+    status:
+      | "active"
+      | "rate_limited"
+      | "quota_exceeded"
+      | "paused"
+      | "deactivated"
+      | "reauth_required"
   }>
   apiKeyProviders: Array<{
     id: string
@@ -57,6 +63,10 @@ function accountStatus(
 ): ProviderStatus {
   if (status === "active") {
     return "Active"
+  }
+
+  if (status === "rate_limited" || status === "quota_exceeded") {
+    return "Rate limited"
   }
 
   return "Disconnected"
@@ -210,7 +220,10 @@ function ProvidersPage() {
 
           <div className="flex-1">
             {selectedProvider ? (
-              <ProviderDetails provider={selectedProvider} />
+              <ProviderDetails
+                onRemoved={() => void loadProviders()}
+                provider={selectedProvider}
+              />
             ) : (
               <div className="flex h-full min-h-[400px] items-center justify-center rounded-lg border border-dashed">
                 <p className="text-sm text-muted-foreground">

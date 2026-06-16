@@ -1,11 +1,11 @@
 import { randomBytes } from "node:crypto"
 
 import {
-  getActiveAccount,
   getDecryptedTokens,
   updateAccountTokens,
   upsertAccountFromTokens,
 } from "../accounts/store"
+import { getSelectedAccount } from "../balancer"
 import {
   OAuthError,
   buildAuthorizationUrl,
@@ -16,6 +16,7 @@ import {
   refreshAccessToken,
   requestDeviceCode,
 } from "./client"
+import type { StoredAccount } from "../accounts/types"
 
 type OAuthMethod = "browser" | "device"
 type OAuthStatus = "idle" | "pending" | "success" | "error"
@@ -224,13 +225,7 @@ export async function completeManualCallback(callbackUrl: string) {
   return completeBrowserCallback(new URL(callbackUrl))
 }
 
-export async function getActiveAccessToken() {
-  const account = await getActiveAccount()
-
-  if (!account) {
-    return null
-  }
-
+export async function getAccessTokenForAccount(account: StoredAccount) {
   const tokens = await getDecryptedTokens(account)
   const lastRefresh = Date.parse(account.lastRefresh)
   const shouldRefresh =
@@ -251,4 +246,14 @@ export async function getActiveAccessToken() {
 
     throw refreshError
   }
+}
+
+export async function getActiveAccessToken() {
+  const account = await getSelectedAccount()
+
+  if (!account) {
+    return null
+  }
+
+  return getAccessTokenForAccount(account)
 }

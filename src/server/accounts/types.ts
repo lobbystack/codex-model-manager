@@ -1,4 +1,10 @@
-export type AccountStatus = "active" | "paused" | "deactivated"
+export type AccountStatus =
+  | "active"
+  | "rate_limited"
+  | "quota_exceeded"
+  | "paused"
+  | "deactivated"
+  | "reauth_required"
 
 export type StoredAccount = {
   id: string

@@ -20,6 +20,8 @@ import type {
   StoredOpenCodeZenModel,
   StoredOpenRouterModel,
 } from "./types"
+import { clearAccountRuntime } from "@/server/balancer/runtime"
+
 
 type StoreFile = {
   accounts: Array<StoredAccount>
@@ -224,6 +226,64 @@ export function generateAccountId(
 export async function listAccounts() {
   const store = await readStore()
   return store.accounts.map(toPublicAccount)
+}
+
+export async function listPoolAccounts() {
+  const store = await readStore()
+  return store.accounts.filter((account) =>
+    ["active", "rate_limited", "quota_exceeded"].includes(account.status)
+  )
+}
+
+export async function listActiveAccounts() {
+  return listPoolAccounts()
+}
+
+export async function getAccountById(accountId: string) {
+  const store = await readStore()
+  return store.accounts.find((account) => account.id === accountId) || null
+}
+
+export async function updateAccountStatus(
+  accountId: string,
+  status: StoredAccount["status"],
+  deactivationReason: string | null = null
+) {
+  writeQueue = writeQueue.then(async () => {
+    const store = await readStore()
+    const existing = store.accounts.findIndex(
+      (candidate) => candidate.id === accountId
+    )
+
+    if (existing < 0) {
+      return
+    }
+
+    store.accounts[existing] = {
+      ...store.accounts[existing],
+      status,
+      deactivationReason,
+    }
+
+    await writeStore(store)
+  })
+
+  await writeQueue
+  const account = await getAccountById(accountId)
+  return account ? toPublicAccount(account) : null
+}
+
+export async function deleteAccount(accountId: string) {
+  writeQueue = writeQueue.then(async () => {
+    const store = await readStore()
+    store.accounts = store.accounts.filter(
+      (candidate) => candidate.id !== accountId
+    )
+    await writeStore(store)
+  })
+
+  await writeQueue
+  clearAccountRuntime(accountId)
 }
 
 export async function listApiKeyProviders() {
@@ -559,8 +619,8 @@ export async function getOllamaCloudKey() {
 }
 
 export async function getActiveAccount() {
-  const store = await readStore()
-  return store.accounts.find((account) => account.status === "active") || null
+  const { getSelectedAccount } = await import("@/server/balancer")
+  return getSelectedAccount()
 }
 
 export async function getDecryptedTokens(
