@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as HealthRouteImport } from './routes/health'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as UsageIndexRouteImport } from './routes/usage/index'
 import { Route as ProvidersIndexRouteImport } from './routes/providers/index'
 import { Route as ModelsIndexRouteImport } from './routes/models/index'
 import { Route as V1ResponsesRouteImport } from './routes/v1/responses'
@@ -23,6 +24,7 @@ import { Route as V1ChatCompletionsRouteImport } from './routes/v1/chat/completi
 import { Route as BackendApiCodexResponsesRouteImport } from './routes/backend-api/codex/responses'
 import { Route as BackendApiCodexModelsRouteImport } from './routes/backend-api/codex/models'
 import { Route as ApiUsageLogsRouteImport } from './routes/api/usage/logs'
+import { Route as ApiUsageCostSeriesRouteImport } from './routes/api/usage/cost-series'
 import { Route as ApiSystemVersionRouteImport } from './routes/api/system/version'
 import { Route as ApiSystemOpenRouteImport } from './routes/api/system/open'
 import { Route as ApiProvidersOpenrouterRouteImport } from './routes/api/providers/openrouter'
@@ -59,6 +61,11 @@ const HealthRoute = HealthRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UsageIndexRoute = UsageIndexRouteImport.update({
+  id: '/usage/',
+  path: '/usage/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProvidersIndexRoute = ProvidersIndexRouteImport.update({
@@ -120,6 +127,11 @@ const BackendApiCodexModelsRoute = BackendApiCodexModelsRouteImport.update({
 const ApiUsageLogsRoute = ApiUsageLogsRouteImport.update({
   id: '/logs',
   path: '/logs',
+  getParentRoute: () => ApiUsageRoute,
+} as any)
+const ApiUsageCostSeriesRoute = ApiUsageCostSeriesRouteImport.update({
+  id: '/cost-series',
+  path: '/cost-series',
   getParentRoute: () => ApiUsageRoute,
 } as any)
 const ApiSystemVersionRoute = ApiSystemVersionRouteImport.update({
@@ -279,6 +291,7 @@ export interface FileRoutesByFullPath {
   '/v1/responses': typeof V1ResponsesRoute
   '/models/': typeof ModelsIndexRoute
   '/providers/': typeof ProvidersIndexRoute
+  '/usage/': typeof UsageIndexRoute
   '/api/accounts/$accountId': typeof ApiAccountsAccountIdRoute
   '/api/codex/install-config': typeof ApiCodexInstallConfigRoute
   '/api/codex/model-catalog': typeof ApiCodexModelCatalogRoute
@@ -294,6 +307,7 @@ export interface FileRoutesByFullPath {
   '/api/providers/openrouter': typeof ApiProvidersOpenrouterRoute
   '/api/system/open': typeof ApiSystemOpenRoute
   '/api/system/version': typeof ApiSystemVersionRoute
+  '/api/usage/cost-series': typeof ApiUsageCostSeriesRoute
   '/api/usage/logs': typeof ApiUsageLogsRoute
   '/backend-api/codex/models': typeof BackendApiCodexModelsRoute
   '/backend-api/codex/responses': typeof BackendApiCodexResponsesRouteWithChildren
@@ -322,6 +336,7 @@ export interface FileRoutesByTo {
   '/v1/responses': typeof V1ResponsesRoute
   '/models': typeof ModelsIndexRoute
   '/providers': typeof ProvidersIndexRoute
+  '/usage': typeof UsageIndexRoute
   '/api/accounts/$accountId': typeof ApiAccountsAccountIdRoute
   '/api/codex/install-config': typeof ApiCodexInstallConfigRoute
   '/api/codex/model-catalog': typeof ApiCodexModelCatalogRoute
@@ -337,6 +352,7 @@ export interface FileRoutesByTo {
   '/api/providers/openrouter': typeof ApiProvidersOpenrouterRoute
   '/api/system/open': typeof ApiSystemOpenRoute
   '/api/system/version': typeof ApiSystemVersionRoute
+  '/api/usage/cost-series': typeof ApiUsageCostSeriesRoute
   '/api/usage/logs': typeof ApiUsageLogsRoute
   '/backend-api/codex/models': typeof BackendApiCodexModelsRoute
   '/backend-api/codex/responses': typeof BackendApiCodexResponsesRouteWithChildren
@@ -366,6 +382,7 @@ export interface FileRoutesById {
   '/v1/responses': typeof V1ResponsesRoute
   '/models/': typeof ModelsIndexRoute
   '/providers/': typeof ProvidersIndexRoute
+  '/usage/': typeof UsageIndexRoute
   '/api/accounts/$accountId': typeof ApiAccountsAccountIdRoute
   '/api/codex/install-config': typeof ApiCodexInstallConfigRoute
   '/api/codex/model-catalog': typeof ApiCodexModelCatalogRoute
@@ -381,6 +398,7 @@ export interface FileRoutesById {
   '/api/providers/openrouter': typeof ApiProvidersOpenrouterRoute
   '/api/system/open': typeof ApiSystemOpenRoute
   '/api/system/version': typeof ApiSystemVersionRoute
+  '/api/usage/cost-series': typeof ApiUsageCostSeriesRoute
   '/api/usage/logs': typeof ApiUsageLogsRoute
   '/backend-api/codex/models': typeof BackendApiCodexModelsRoute
   '/backend-api/codex/responses': typeof BackendApiCodexResponsesRouteWithChildren
@@ -411,6 +429,7 @@ export interface FileRouteTypes {
     | '/v1/responses'
     | '/models/'
     | '/providers/'
+    | '/usage/'
     | '/api/accounts/$accountId'
     | '/api/codex/install-config'
     | '/api/codex/model-catalog'
@@ -426,6 +445,7 @@ export interface FileRouteTypes {
     | '/api/providers/openrouter'
     | '/api/system/open'
     | '/api/system/version'
+    | '/api/usage/cost-series'
     | '/api/usage/logs'
     | '/backend-api/codex/models'
     | '/backend-api/codex/responses'
@@ -454,6 +474,7 @@ export interface FileRouteTypes {
     | '/v1/responses'
     | '/models'
     | '/providers'
+    | '/usage'
     | '/api/accounts/$accountId'
     | '/api/codex/install-config'
     | '/api/codex/model-catalog'
@@ -469,6 +490,7 @@ export interface FileRouteTypes {
     | '/api/providers/openrouter'
     | '/api/system/open'
     | '/api/system/version'
+    | '/api/usage/cost-series'
     | '/api/usage/logs'
     | '/backend-api/codex/models'
     | '/backend-api/codex/responses'
@@ -497,6 +519,7 @@ export interface FileRouteTypes {
     | '/v1/responses'
     | '/models/'
     | '/providers/'
+    | '/usage/'
     | '/api/accounts/$accountId'
     | '/api/codex/install-config'
     | '/api/codex/model-catalog'
@@ -512,6 +535,7 @@ export interface FileRouteTypes {
     | '/api/providers/openrouter'
     | '/api/system/open'
     | '/api/system/version'
+    | '/api/usage/cost-series'
     | '/api/usage/logs'
     | '/backend-api/codex/models'
     | '/backend-api/codex/responses'
@@ -541,6 +565,7 @@ export interface RootRouteChildren {
   V1ResponsesRoute: typeof V1ResponsesRoute
   ModelsIndexRoute: typeof ModelsIndexRoute
   ProvidersIndexRoute: typeof ProvidersIndexRoute
+  UsageIndexRoute: typeof UsageIndexRoute
   ApiCodexInstallConfigRoute: typeof ApiCodexInstallConfigRoute
   ApiCodexModelCatalogRoute: typeof ApiCodexModelCatalogRoute
   ApiCodexUsageLimitRoute: typeof ApiCodexUsageLimitRoute
@@ -585,6 +610,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/usage/': {
+      id: '/usage/'
+      path: '/usage'
+      fullPath: '/usage/'
+      preLoaderRoute: typeof UsageIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/providers/': {
@@ -669,6 +701,13 @@ declare module '@tanstack/react-router' {
       path: '/logs'
       fullPath: '/api/usage/logs'
       preLoaderRoute: typeof ApiUsageLogsRouteImport
+      parentRoute: typeof ApiUsageRoute
+    }
+    '/api/usage/cost-series': {
+      id: '/api/usage/cost-series'
+      path: '/cost-series'
+      fullPath: '/api/usage/cost-series'
+      preLoaderRoute: typeof ApiUsageCostSeriesRouteImport
       parentRoute: typeof ApiUsageRoute
     }
     '/api/system/version': {
@@ -876,10 +915,12 @@ const ApiAccountsRouteWithChildren = ApiAccountsRoute._addFileChildren(
 )
 
 interface ApiUsageRouteChildren {
+  ApiUsageCostSeriesRoute: typeof ApiUsageCostSeriesRoute
   ApiUsageLogsRoute: typeof ApiUsageLogsRoute
 }
 
 const ApiUsageRouteChildren: ApiUsageRouteChildren = {
+  ApiUsageCostSeriesRoute: ApiUsageCostSeriesRoute,
   ApiUsageLogsRoute: ApiUsageLogsRoute,
 }
 
@@ -912,6 +953,7 @@ const rootRouteChildren: RootRouteChildren = {
   V1ResponsesRoute: V1ResponsesRoute,
   ModelsIndexRoute: ModelsIndexRoute,
   ProvidersIndexRoute: ProvidersIndexRoute,
+  UsageIndexRoute: UsageIndexRoute,
   ApiCodexInstallConfigRoute: ApiCodexInstallConfigRoute,
   ApiCodexModelCatalogRoute: ApiCodexModelCatalogRoute,
   ApiCodexUsageLimitRoute: ApiCodexUsageLimitRoute,

@@ -47,3 +47,23 @@ export type UsageSummary = {
     errors: number
   }>
 }
+
+export type UsageCostSeriesDay = {
+  date: string
+  totalUsd: number
+  byModel: Record<string, number>
+}
+
+export type UsageCostSeriesModel = {
+  model: string
+  provider: ProviderId
+  totalUsd: number
+}
+
+export type UsageCostSeries = {
+  year: number
+  month: number
+  costKind: "estimated"
+  days: Array<UsageCostSeriesDay>
+  models: Array<UsageCostSeriesModel>
+}

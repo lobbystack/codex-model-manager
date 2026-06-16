@@ -3,7 +3,11 @@ import { homedir } from "node:os"
 import { dirname, join } from "node:path"
 
 import { calculateRegistryCostUsd } from "./pricing"
-import type { UsageLogEntry, UsageSummary } from "./types"
+import type {
+  UsageCostSeries,
+  UsageLogEntry,
+  UsageSummary,
+} from "./types"
 
 type StoreFile = {
   requestLogs: Array<UsageLogEntry>
@@ -246,5 +250,104 @@ export async function getUsageSummary(
         realCostUsd: roundCost(model.realCostUsd),
       }))
       .sort((a, b) => b.requests - a.requests),
+  }
+}
+
+function localDateKey(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+function daysInMonth(year: number, month: number) {
+  return new Date(year, month, 0).getDate()
+}
+
+function isInCalendarMonth(date: Date, year: number, month: number) {
+  return date.getFullYear() === year && date.getMonth() + 1 === month
+}
+
+export async function getUsageCostSeries(options: {
+  year: number
+  month: number
+  models?: Array<string>
+  costKind?: "estimated"
+}): Promise<UsageCostSeries> {
+  const { year, month, models } = options
+  const costKind = options.costKind ?? "estimated"
+  const modelFilter =
+    models && models.length > 0 ? new Set(models) : null
+  const store = await readStore()
+  const dayCount = daysInMonth(year, month)
+  const byDate = new Map<string, Map<string, number>>()
+  const modelTotals = new Map<
+    string,
+    { model: string; provider: UsageLogEntry["provider"]; totalUsd: number }
+  >()
+
+  for (const log of store.requestLogs) {
+    if (modelFilter && !modelFilter.has(log.model)) {
+      continue
+    }
+
+    const requestedAt = new Date(log.requestedAt)
+
+    if (Number.isNaN(requestedAt.getTime())) {
+      continue
+    }
+
+    if (!isInCalendarMonth(requestedAt, year, month)) {
+      continue
+    }
+
+    const costUsd = estimatedCostForSummary(log)
+    const dateKey = localDateKey(requestedAt)
+    const dayModels = byDate.get(dateKey) || new Map<string, number>()
+    dayModels.set(log.model, (dayModels.get(log.model) || 0) + costUsd)
+    byDate.set(dateKey, dayModels)
+
+    const modelEntry = modelTotals.get(log.model) || {
+      model: log.model,
+      provider: log.provider,
+      totalUsd: 0,
+    }
+    modelEntry.totalUsd += costUsd
+    modelTotals.set(log.model, modelEntry)
+  }
+
+  const days = Array.from({ length: dayCount }, (_, index) => {
+    const day = index + 1
+    const dateKey = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+    const dayModels = byDate.get(dateKey)
+    const byModel: Record<string, number> = {}
+
+    if (dayModels) {
+      for (const [model, amount] of dayModels) {
+        byModel[model] = roundCost(amount)
+      }
+    }
+
+    const totalUsd = roundCost(
+      Object.values(byModel).reduce((sum, value) => sum + value, 0)
+    )
+
+    return { date: dateKey, totalUsd, byModel }
+  })
+
+  const modelsList = [...modelTotals.values()]
+    .map((entry) => ({
+      ...entry,
+      totalUsd: roundCost(entry.totalUsd),
+    }))
+    .filter((entry) => entry.totalUsd > 0)
+    .sort((a, b) => b.totalUsd - a.totalUsd)
+
+  return {
+    year,
+    month,
+    costKind,
+    days,
+    models: modelsList,
   }
 }

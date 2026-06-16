@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router"
-import { Activity, Box, Layers, Terminal } from "lucide-react"
+import { Activity, BarChart3, Box, Layers, Terminal } from "lucide-react"
 import { useEffect, useState } from "react"
 
 import {
@@ -39,6 +39,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   const navItems = [
     { href: "/", label: "Overview", icon: Activity },
+    { href: "/usage", label: "Usage", icon: BarChart3 },
     { href: "/models", label: "Models", icon: Layers },
     { href: "/providers", label: "Providers", icon: Box },
   ]
@@ -97,7 +98,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
             {navItems.map((item) => {
               const Icon = item.icon
-              const isActive = location.pathname === item.href
+              const isActive =
+                item.href === "/"
+                  ? location.pathname === "/"
+                  : location.pathname.startsWith(item.href)
               return (
                 <Link
                   key={item.href}
